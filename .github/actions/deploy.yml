@@ -1,0 +1,103 @@
+name: MST Infrastructure Deployment
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "terraform/**"
+      - "db/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
+    inputs:
+      deploy_terraform:
+        description: "Deploy Terraform infrastructure?"
+        type: boolean
+        required: true
+        default: false
+      run_migrations:
+        description: "Run database migrations?"
+        type: boolean
+        required: true
+        default: false
+
+jobs:
+  detect_changes:
+    runs-on: ubuntu-latest
+    outputs:
+      terraform_changed: ${{ steps.filter.outputs.terraform }}
+      db_changed: ${{ steps.filter.outputs.db }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Check for file changes
+        uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            terraform:
+              - 'terraform/**'
+            db:
+              - 'db/**'
+
+  deploy_infrastructure:
+    needs: detect_changes
+    if: |
+      needs.detect_changes.outputs.terraform_changed == 'true' || 
+      github.event.inputs.deploy_terraform == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Terraform Plan
+        run: |
+          cd terraform
+          terraform init
+          terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        run: |
+          cd terraform
+          terraform apply tfplan
+
+  run_db_migrations:
+  needs: [detect_changes, deploy_infrastructure]
+  if: |
+    always() && 
+    (needs.deploy_infrastructure.result == 'success' || needs.deploy_infrastructure.result == 'skipped') &&
+    (needs.detect_changes.outputs.db_changed == 'true' || github.event.inputs.run_migrations == 'true')
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Install PostgreSQL client
+      run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+    - name: Run database migrations
+      run: |
+        # Get DB endpoint and credentials
+        DB_HOST=$(aws ssm get-parameter --name "/mst-infra/db-endpoint" --query "Parameter.Value" --output text)
+        DB_CREDS=$(aws secretsmanager get-secret-value --secret-id mst-db-credentials --query SecretString --output text)
+        DB_USER=$(echo $DB_CREDS | jq -r '.username')
+        DB_PASSWORD=$(echo $DB_CREDS | jq -r '.password')
+        DB_NAME="mst_db"
+
+        # Execute SQL file directly
+        PGPASSWORD=$DB_PASSWORD psql \
+          -h $DB_HOST \
+          -U $DB_USER \
+          -d $DB_NAME \
+          -f db/init.sql
