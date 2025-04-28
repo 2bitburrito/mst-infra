@@ -15,9 +15,10 @@ resource "aws_rds_cluster" "mst_db" {
   }
 }
 
-resource "aws_rds_cluster_instance" "example" {
-  cluster_identifier = aws_rds_cluster.mst_db.id
-  instance_class     = "db.serverless"
-  engine             = aws_rds_cluster.mst_db.engine
-  engine_version     = aws_rds_cluster.mst_db.engine_version
+resource "aws_rds_cluster_instance" "cluster" {
+  cluster_identifier  = aws_rds_cluster.mst_db.id
+  publicly_accessible = true
+  instance_class      = "db.serverless"
+  engine              = aws_rds_cluster.mst_db.engine
+  engine_version      = aws_rds_cluster.mst_db.engine_version
 }
