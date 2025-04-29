@@ -1,4 +1,4 @@
-#* First run ../scripts/build_lambda.sh
+#* First, build binary with: ../scripts/build_lambda.sh
 
 resource "aws_lambda_function" "check_license" {
   function_name = "check_license"
@@ -34,34 +34,6 @@ resource "aws_iam_role" "lambda_role" {
         Principal = {
           Service = "lambda.amazonaws.com"
         }
-      }
-    ]
-  })
-}
-
-# Attach policy to the role
-resource "aws_iam_role_policy" "lambda_policy" {
-  name = "lambda_check_license_policy"
-  role = aws_iam_role.lambda_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "secretsmanager:GetSecretValue"
-        ]
-        Resource = "arn:aws:secretsmanager:*:*:secret:mst-db-credentials*"
-      },
-      {
-        Effect = "Allow",
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ],
-        Resource = "arn:aws:logs:*:*:*"
       }
     ]
   })

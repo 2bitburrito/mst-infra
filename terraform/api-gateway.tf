@@ -1,4 +1,3 @@
-# ! NOT YET DEPLOYED
 module "api_gateway" {
   source = "terraform-aws-modules/apigateway-v2/aws"
 
@@ -12,8 +11,8 @@ module "api_gateway" {
     allow_origins = ["*"]
   }
 
-  # Custom domain - Awaiting purchase of mst.com
-  domain_name = "api.metasoundtools.com"
+  # Custom domain - change to subdomain ".api" when avaliable
+  domain_name = "metasoundtools.com"
 
   # Access logs
   stage_access_log_settings = {
@@ -45,21 +44,24 @@ module "api_gateway" {
     })
   }
 
-  # Authorizer(s)
-  authorizers = {
-    "api" = {
-      authorizer_type = "REQUEST"
-      name            = "api-auth"
-    }
-  }
+  #? Change this to cognito when out of dev
+  #   # Authorizer(s)
+  #   authorizers = {
+  #     "api" = {
+  #       authorizer_type  = "REQUEST"
+  #       name             = "api-auth"
+  #       authorizer_uri   = aws_iam_role.lambda_role.arn
+  #       identity_sources = ["$request.header.Authorization"]
+  #     }
+  #   }
 
   # Routes & Integration(s)
   routes = {
-    "POST/check-license" = {
+    "POST /check_license" = {
       integration = {
-        uri                    = module.check_license_lambda.lambda_function_invoke_arn
+        uri                    = aws_lambda_function.check_license.invoke_arn
         payload_format_version = "2.0"
-        timeout_milliseconds   = 12000
+        timeout_milliseconds   = 1200
       }
     }
   }
@@ -68,4 +70,11 @@ module "api_gateway" {
     Environment = "prod"
     Terraform   = "true"
   }
+}
+
+resource "aws_lambda_permission" "api_gw_auth" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.check_license.function_name
+  principal     = "apigateway.amazonaws.com"
 }

@@ -22,3 +22,11 @@ resource "aws_rds_cluster_instance" "cluster" {
   engine              = aws_rds_cluster.mst_db.engine
   engine_version      = aws_rds_cluster.mst_db.engine_version
 }
+
+/*
+    aws rds-data execute-statement \
+    --resource-arn "arn:aws:rds:region:account-id:cluster:your-cluster-name" \
+    --secret-arn "arn:aws:secretsmanager:region:account-id:secret:your-secret-name" \
+    --database "your_database_name" \
+    --sql "$(cat /path/to/your/schema.sql)"
+*/
