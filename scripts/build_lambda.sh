@@ -10,7 +10,7 @@ cd "$(dirname "$0")/../lambda/check_license"
 rm -f bootstrap function.zip
 
 # Build for Linux ARM64
-GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o bootstrap main.go
+GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o bootstrap .
 
 # Create ZIP package
 zip -j function.zip bootstrap
@@ -20,3 +20,4 @@ mkdir -p ../../terraform/lambda
 cp function.zip ../../terraform/lambda/
 
 echo "Lambda package built successfully: ../../terraform/lambda/function.zip"
+

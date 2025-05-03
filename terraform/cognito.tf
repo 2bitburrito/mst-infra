@@ -27,12 +27,13 @@ resource "aws_cognito_user_pool" "user_pool" {
 }
 
 resource "aws_cognito_user_pool_client" "client" {
-  name = "cognito-client"
+  name                    = "cognito-client"
+  enable_token_revocation = true
 
   user_pool_id                  = aws_cognito_user_pool.user_pool.id
   generate_secret               = false
   prevent_user_existence_errors = "ENABLED"
-  refresh_token_validity        = 1825
+  refresh_token_validity        = 20
   explicit_auth_flows = [
     "ALLOW_REFRESH_TOKEN_AUTH",
     "ALLOW_USER_PASSWORD_AUTH",
