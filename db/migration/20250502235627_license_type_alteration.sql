@@ -13,5 +13,6 @@ USING license_type::licence_type_enum;
 
 -- +goose Down
 -- +goose StatementBegin
-SELECT 'down SQL query';
+ALTER TABLE licenses
+ALTER COLUMN license_type TYPE TEXT;
 -- +goose StatementEnd

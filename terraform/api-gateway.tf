@@ -1,5 +1,6 @@
 module "api_gateway" {
-  source = "terraform-aws-modules/apigateway-v2/aws"
+  source  = "terraform-aws-modules/apigateway-v2/aws"
+  version = "~>5.0"
 
   name          = "mst-api-gateway"
   description   = "Main API gateway for mst backend"
