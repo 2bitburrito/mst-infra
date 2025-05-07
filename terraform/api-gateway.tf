@@ -11,9 +11,7 @@ module "api_gateway" {
     allow_methods = ["*"]
     allow_origins = ["*"]
   }
-
-  # Custom domain - change to subdomain ".api" when avaliable
-  domain_name = "metasoundtools.com"
+  create_domain_name = false
 
   # Access logs
   stage_access_log_settings = {
@@ -57,6 +55,7 @@ module "api_gateway" {
   #   }
 
   # Routes & Integration(s)
+
   routes = {
     "POST /check_license" = {
       integration = {
@@ -78,4 +77,7 @@ resource "aws_lambda_permission" "api_gw_auth" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.check_license.function_name
   principal     = "apigateway.amazonaws.com"
+}
+output "api_gateway_endpoint" {
+  value = module.api_gateway.api_endpoint
 }

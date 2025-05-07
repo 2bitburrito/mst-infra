@@ -8,7 +8,7 @@ import (
 
 func CheckEnv() (pqConnectionSting string, error error) {
 	DB_URL := os.Getenv("DB_URL")
-	DB_PORT := 5432
+	DB_PORT := os.Getenv("DB_PORT")
 	DB_PASSWORD := os.Getenv("DB_PASSWORD")
 	DB_USER := os.Getenv("DB_USER")
 	DB_NAME := os.Getenv("DB_NAME")
@@ -25,13 +25,13 @@ func CheckEnv() (pqConnectionSting string, error error) {
 		return "", errors.New("DB_NAME is not set")
 	}
 
-	pqConnectionSting = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", DB_URL, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME)
+	pqConnectionSting = fmt.Sprintf("host=%s port=%v user=%s password=%s dbname=%s sslmode=disable", DB_URL, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME)
 
 	return pqConnectionSting, nil
 }
 
 /*
-NOTE: This is from the secrets manager if the above doesn't work
+NOTE: This is from the secrets manager docs if the above doesn't work
 
 import (
 	"github.com/aws/aws-sdk-go-v2/aws"

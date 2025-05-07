@@ -107,6 +107,6 @@ func createErrorResponse(httpStatusCode int, body string) events.APIGatewayProxy
 	}
 }
 
+lambda.Start(HandleRequest)
 func main() {
-	lambda.Start(HandleRequest)
 }
