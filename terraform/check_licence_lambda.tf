@@ -17,7 +17,7 @@ resource "aws_lambda_function" "check_license" {
       DB_URL_READ  = "mst-aurora-db.cluster-ro-cvq42ycqkt4f.us-west-1.rds.amazonaws.com"
       DB_USER      = "mst_admin"
       DB_PORT      = 5432
-      DB-PASSWORD  = var.db_password
+      DB_PASSWORD  = var.db_password
     }
   }
 

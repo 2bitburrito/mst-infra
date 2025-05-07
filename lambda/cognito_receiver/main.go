@@ -16,16 +16,23 @@ type CognitoEvent struct {
 	UserPoolID    string                 `json:"userPoolId"`
 	CallerContext map[string]interface{} `json:"callerContext"`
 	Request       struct {
-		UserAttributes map[string]string `json:"userAttributes"`
-		NewDeviceUsed  bool              `json:"newDeviceUsed"`
+		UserAttributes map[string]any `json:"userAttributes"`
+		NewDeviceUsed  bool           `json:"newDeviceUsed"`
 	} `json:"request"`
-	Response map[string]interface{} `json:"response"`
+	ClientMetadata map[string]string      `json:"clientMetadata"`
+	Response       map[string]interface{} `json:"response"`
+}
+
+type UserAttributes struct {
+	Username           string `json:"username"`
+	Email              string `json:"email"`
+	ConfirmationStatus string `json:"confirmation_status"`
 }
 
 func createDbString() (pqConnectionSting string, error error) {
 	DB_URL := os.Getenv("DB_URL")
-	DB_PORT := os.Getenv("DB_PORT")
 	DB_PASSWORD := os.Getenv("DB_PASSWORD")
+	DB_PORT := os.Getenv("DB_PORT")
 	DB_USER := os.Getenv("DB_USER")
 	DB_NAME := os.Getenv("DB_NAME")
 	if len(DB_URL) == 0 {
@@ -47,7 +54,10 @@ func createDbString() (pqConnectionSting string, error error) {
 }
 
 func handler(ctx context.Context, event CognitoEvent) (CognitoEvent, error) {
-	fmt.Printf("received event: %+v\n", event)
+	fmt.Println("handler called")
+	fmt.Println("Context:", ctx)
+	fmt.Printf("received event: %v\n", event)
+	fmt.Println("User Attributes:", event.Request.UserAttributes)
 	return CognitoEvent{}, nil
 }
 
