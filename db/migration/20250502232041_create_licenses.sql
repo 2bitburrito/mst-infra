@@ -7,12 +7,11 @@ CREATE TABLE IF NOT EXISTS licenses (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_used_at TIMESTAMP NOT NULL,
     license_type TEXT NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
 
 -- +goose StatementEnd
- 
 -- +goose Down
 -- +goose StatementBegin
 DROP TABLE IF EXISTS licenses;
