@@ -9,6 +9,11 @@ resource "aws_lambda_function" "cognito_reciever" {
   filename         = "${path.module}/lambda/cognito_receiver.zip"
   source_code_hash = filebase64sha256("${path.module}/lambda/cognito_receiver.zip")
 
+  vpc_config {
+    subnet_ids         = var.mst_db_vpc_subnets
+    security_group_ids = [aws_security_group.mst_db_sg.id]
+  }
+
   environment {
     variables = {
       DB_NAME      = "mst_db"
@@ -21,13 +26,12 @@ resource "aws_lambda_function" "cognito_reciever" {
     }
   }
 
-  role = aws_iam_role.lambda_role.arn
+  role = aws_iam_role.cognito_lambda.arn
 }
 
 # Create IAM role for the Lambda function
 resource "aws_iam_role" "cognito_lambda" {
   name = "cognito_lambda_role"
-
 
 
   assume_role_policy = jsonencode({
@@ -44,7 +48,7 @@ resource "aws_iam_role" "cognito_lambda" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "cognito_lambda_logging_attachment" {
+resource "aws_iam_role_policy_attachment" "cognito_lambda_network_attachment" {
   role       = aws_iam_role.cognito_lambda.name
-  policy_arn = aws_iam_policy.lambda_logging_policy.arn
+  policy_arn = aws_iam_policy.lambda_network_policy.arn
 }

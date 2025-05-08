@@ -21,3 +21,12 @@ variable "mst_website_github_token" {
   type        = string
   sensitive   = true
 }
+
+variable "mst_db_vpc_subnets" {
+  description = "Subnets for the MST DB security group"
+  type        = list(string)
+  default = [
+    "subnet-0cb215611bf5bdd37",
+    "subnet-0bd8ce0b8ace0910f"
+  ]
+}

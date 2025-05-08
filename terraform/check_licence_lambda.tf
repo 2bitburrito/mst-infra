@@ -9,6 +9,11 @@ resource "aws_lambda_function" "check_license" {
   filename         = "${path.module}/lambda/function.zip"
   source_code_hash = filebase64sha256("${path.module}/lambda/function.zip")
 
+  vpc_config {
+    subnet_ids         = var.mst_db_vpc_subnets
+    security_group_ids = [aws_security_group.mst_db_sg.id]
+  }
+
   environment {
     variables = {
       DB_NAME      = "mst_db"
@@ -40,4 +45,8 @@ resource "aws_iam_role" "lambda_role" {
       }
     ]
   })
+}
+resource "aws_iam_role_policy_attachment" "check_license_network_attachment" {
+  role       = aws_iam_role.cognito_lambda.name
+  policy_arn = aws_iam_policy.lambda_network_policy.arn
 }

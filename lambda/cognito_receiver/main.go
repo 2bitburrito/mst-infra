@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -10,23 +11,26 @@ import (
 )
 
 type CognitoEvent struct {
-	Version       string                 `json:"version"`
-	TriggerSource string                 `json:"triggerSource"`
-	Region        string                 `json:"region"`
-	UserPoolID    string                 `json:"userPoolId"`
-	CallerContext map[string]interface{} `json:"callerContext"`
-	Request       struct {
-		UserAttributes map[string]any `json:"userAttributes"`
+	Version       string         `json:"version"`
+	TriggerSource string         `json:"triggerSource"`
+	Region        string         `json:"region"`
+	UserPoolID    string         `json:"userPoolId"`
+	CallerContext map[string]any `json:"callerContext"`
+
+	Request struct {
+		UserAttributes UserAttributes `json:"userAttributes"`
 		NewDeviceUsed  bool           `json:"newDeviceUsed"`
 	} `json:"request"`
-	ClientMetadata map[string]string      `json:"clientMetadata"`
-	Response       map[string]interface{} `json:"response"`
+	ClientMetadata map[string]string `json:"clientMetadata"`
+	Response       map[string]any    `json:"response"`
 }
 
+// User Attributes: map[cognito:user_status:CONFIRMED email:hughpalmerproduction@gmail.com email_verified:true sub:39b9692e-3061-70ff-29db-29125abe9c95]
+
 type UserAttributes struct {
-	Username           string `json:"username"`
+	Id                 string `json:"sub"`
 	Email              string `json:"email"`
-	ConfirmationStatus string `json:"confirmation_status"`
+	ConfirmationStatus string `json:"user_status"`
 }
 
 func createDbString() (pqConnectionSting string, error error) {
@@ -53,14 +57,42 @@ func createDbString() (pqConnectionSting string, error error) {
 	return pqConnectionSting, nil
 }
 
-func handler(ctx context.Context, event CognitoEvent) (CognitoEvent, error) {
+func handler(ctx context.Context, event CognitoEvent) CognitoEvent {
 	fmt.Println("handler called")
 	fmt.Println("Context:", ctx)
 	fmt.Printf("received event: %v\n", event)
 	fmt.Println("User Attributes:", event.Request.UserAttributes)
-	return CognitoEvent{}, nil
+
+	err := db.Ping()
+	if err != nil {
+		fmt.Println("Error pinging database:", err)
+	}
+	rows, err := db.Query("SELECT * FROM users")
+	if err != nil {
+		fmt.Println("Error in select query:", err)
+	}
+	fmt.Println("User rows:", rows)
+
+	return event
 }
 
+var db *sql.DB
+
 func main() {
+	connectionString, err := createDbString()
+	if err != nil {
+		fmt.Println("Error creating connection string:", err)
+	}
+	db, err = sql.Open("postgres", connectionString)
+	if err != nil {
+		fmt.Println("Error opening database:", err)
+	}
+
+	db.SetConnMaxLifetime(0)
+	db.SetMaxIdleConns(3)
+	db.SetMaxOpenConns(3)
+
+	fmt.Println("Database Connection established")
+
 	lambda.Start(handler)
 }
