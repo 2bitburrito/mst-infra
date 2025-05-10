@@ -25,3 +25,9 @@ mkdir -p ../../terraform/lambda
 cp "$1".zip ../../terraform/lambda/
 
 echo "Lambda package built successfully: ../../terraform/lambda/$1.zip"
+
+if [ "$2" == "-deploy" ]; then
+  echo "Lambda uploading to AWS: ../../terraform/lambda/$1.zip"
+  echo aws CLI args: \"--function-name "$1" --zip-file fileb://../../terraform/lambda/"$1".zip\"
+  aws lambda update-function-code --function-name "$1" --zip-file fileb://../../terraform/lambda/"$1".zip
+fi

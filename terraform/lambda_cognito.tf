@@ -1,6 +1,6 @@
 
-resource "aws_lambda_function" "cognito_reciever" {
-  function_name = "cognito_reciever"
+resource "aws_lambda_function" "cognito_receiver" {
+  function_name = "cognito_receiver"
   description   = "Handler to receive sign up hooks from cognito and add users to DB"
   handler       = "bootstrap"
   runtime       = "provided.al2023"

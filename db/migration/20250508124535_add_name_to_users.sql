@@ -10,4 +10,5 @@ ALTER TABLE users ALTER COLUMN subscribed_to_emails SET DEFAULT FALSE;
 ALTER TABLE users ALTER COLUMN subscribed_to_emails DROP DEFAULT;
 ALTER TABLE users ALTER COLUMN number_of_licenses DROP DEFAULT;
 ALTER TABLE users DROP COLUMN name;
+--
 -- +goose StatementEnd
