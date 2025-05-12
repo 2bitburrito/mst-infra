@@ -1,16 +1,18 @@
 package main
 
 import (
+	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
 
 type User struct {
+	Id               string `json:"id"`
 	Email            string `json:"email"`
 	HasLicense       bool   `json:"has_license"`
 	NumberOfLicenses int    `json:"number_of_licenses"`
 	FullName         string `json:"full_name"`
-	Id               string `json:"Id"`
 }
 
 func getUser(w http.ResponseWriter, r *http.Request) {
@@ -18,8 +20,28 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if len(id) < 1 {
 		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
 	}
-  query := "SELECT email, has_license, number_of_licenses,  FROM users"
-  db.Query("", args ...any)
+	var user User
+	query := "SELECT email, has_license, number_of_licenses, id FROM users WHERE id=?"
+	if err := db.QueryRow(query, id).Scan(&user); err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "user id not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		http.Error(w, "failed to encode user data to json", http.StatusInternalServerError)
+		return
+	}
+
 	fmt.Println("userId:", id)
 }
+
+func patchUser(w http.ResponseWriter, r *http.Request)  {}
+func postUser(w http.ResponseWriter, r *http.Request)   {}
+func deleteUser(w http.ResponseWriter, r *http.Request) {}

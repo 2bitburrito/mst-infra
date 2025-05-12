@@ -15,7 +15,12 @@ var db *sql.DB
 type Response struct {
 	Valid    bool   `json:"valid"`
 	Messages string `json:"message,omitempty"`
-	Error    error  `json:"error,omitempty"`
+	Error    string `json:"error,omitempty"`
+}
+type proxyResponseWriter struct {
+	headers http.Header
+	body    []byte
+	status  int
 }
 
 func init() {
@@ -49,7 +54,7 @@ func setupRouter() *http.ServeMux {
 	router.HandleFunc("PATCH /api/license/{id}", patchLicense)
 	router.HandleFunc("GET /api/license/{id}", getLicense)
 
-	router.HandleFunc("POST /api/license/check/", checkLicense)
+	router.HandleFunc("GET /api/license/check/", checkLicense)
 
 	return router
 }
@@ -60,6 +65,8 @@ func HandleRequest(req events.APIGatewayProxyRequest) events.APIGatewayProxyResp
 	if db == nil {
 		return createErrorResponse(http.StatusInternalServerError, "Database connection is not established")
 	}
+	w := &proxyResponseWriter
+	events.APIGatewayProxyResponse
 	return events.APIGatewayProxyResponse{}
 }
 
