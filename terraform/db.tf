@@ -2,7 +2,7 @@ resource "aws_rds_cluster" "mst_db" {
   cluster_identifier     = "mst-aurora-db"
   engine                 = "aurora-postgresql"
   engine_mode            = "provisioned"
-  engine_version         = "14.12"
+  engine_version         = "14.15"
   database_name          = "mst_db"
   master_username        = "mst_admin"
   master_password        = var.db_password

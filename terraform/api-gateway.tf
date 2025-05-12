@@ -57,9 +57,9 @@ module "api_gateway" {
   # Routes & Integration(s)
 
   routes = {
-    "POST /check_license" = {
+    "$default" = {
       integration = {
-        uri                    = aws_lambda_function.check_license.invoke_arn
+        uri                    = aws_lambda_function.backend_api.invoke_arn
         payload_format_version = "2.0"
         timeout_milliseconds   = 1200
       }
@@ -75,7 +75,7 @@ module "api_gateway" {
 resource "aws_lambda_permission" "api_gw_auth" {
   statement_id  = "AllowExecutionFromAPIGateway"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.check_license.function_name
+  function_name = aws_lambda_function.backend_api.function_name
   principal     = "apigateway.amazonaws.com"
 }
 output "api_gateway_endpoint" {
