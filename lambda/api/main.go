@@ -2,12 +2,9 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
-
-	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-lambda-go/lambda"
 )
 
 var db *sql.DB
@@ -17,22 +14,17 @@ type Response struct {
 	Messages string `json:"message,omitempty"`
 	Error    string `json:"error,omitempty"`
 }
-type proxyResponseWriter struct {
-	headers http.Header
-	body    []byte
-	status  int
-}
 
 func init() {
 	dbConnectionString, err := CheckEnv()
 	if err != nil {
-		createErrorResponse(http.StatusInternalServerError, err.Error())
+		fmt.Println("error getting environmental vars:", err.Error())
 		panic(err)
 	}
 
 	db, err := sql.Open("postgres", dbConnectionString)
 	if err != nil {
-		createErrorResponse(http.StatusInternalServerError, err.Error())
+		fmt.Println("error establishing db connection", err.Error())
 		panic(err)
 	}
 
@@ -59,33 +51,14 @@ func setupRouter() *http.ServeMux {
 	return router
 }
 
-func HandleRequest(req events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
-	router := setupRouter()
-
-	if db == nil {
-		return createErrorResponse(http.StatusInternalServerError, "Database connection is not established")
-	}
-	w := &proxyResponseWriter
-	events.APIGatewayProxyResponse
-	return events.APIGatewayProxyResponse{}
-}
-
-func createErrorResponse(httpStatusCode int, body string) events.APIGatewayProxyResponse {
-	responseBody := Response{
-		Valid: false,
-		Error: body,
-	}
-	responseJSON, err := json.Marshal(responseBody)
-	if err != nil {
-		fmt.Printf("Error marshalling response: %v\n", err)
-	}
-	return events.APIGatewayProxyResponse{
-		StatusCode: httpStatusCode,
-		Headers:    map[string]string{"Content-Type": "application/json"},
-		Body:       string(responseJSON),
-	}
-}
-
 func main() {
-	lambda.Start(HandleRequest)
+	router := setupRouter()
+	if db == nil {
+		log.Fatalf("database connection is not established")
+	}
+	err := db.Ping()
+	if err != nil {
+		log.Fatalf("database failed to ping")
+	}
+	http.ListenAndServe(":3000", router)
 }
