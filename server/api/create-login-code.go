@@ -2,37 +2,24 @@ package main
 
 import (
 	"api/config"
+	"api/jwt"
+	"encoding/json"
 	"fmt"
 	"net/http"
-
-	cognitoJwtVerify "github.com/jhosan7/cognito-jwt-verify"
 )
 
 func createLoginCode(w http.ResponseWriter, r *http.Request) {
 	cfg, _ := config.LoadConfig()
+	var user User
 
 	fmt.Println("Creating Login Code")
-	id := r.PathValue("id")
-	jwt := r.PathValue("Authorization")
+
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	defer r.Body.Close()
+
 	// Verify the jwt with cognito
-	fmt.Printf("User ID: %v", id)
-	fmt.Printf("User JWT: %v", jwt)
-
-	cognitoCfg := cognitoJwtVerify.Config{
-		UserPoolId: cfg.CognitoPoolID,
-		ClientId:   id,
-	}
-
-	verify, err := cognitoJwtVerify.Create(cognitoCfg)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return
-	}
-	payload, err := verify.Verify("eyJraW...")
-	if err != nil {
-		fmt.Printf("Error: %s\n", err)
-		return
-	}
-
-	fmt.Println(payload)
+	jwt.Verify(cfg.CognitoPoolID, user.Id, user.JWT)
 }

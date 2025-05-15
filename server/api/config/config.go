@@ -1,16 +1,20 @@
 package config
 
 import (
+	"log"
 	"os"
+	"time"
 
+	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv/autoload"
 )
 
 type Config struct {
-	DB            PostgresConfig
-	Port          string
-	ApiKey        string
-	CognitoPoolID string
+	DB             PostgresConfig
+	Port           string
+	ApiKey         string
+	CognitoPoolID  string
+	ReaperDuration time.Duration
 }
 
 type PostgresConfig struct {
@@ -21,6 +25,10 @@ type PostgresConfig struct {
 }
 
 func LoadConfig() (*Config, error) {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Couldn't load env")
+	}
 	cfg := &Config{
 		Port:   os.Getenv("PORT"),
 		ApiKey: os.Getenv("API_KEY"),
@@ -32,6 +40,5 @@ func LoadConfig() (*Config, error) {
 		},
 		CognitoPoolID: os.Getenv("COGNITO_POOL_ID"),
 	}
-
 	return cfg, nil
 }

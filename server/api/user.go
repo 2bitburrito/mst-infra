@@ -3,7 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
+	"io"
 	"log"
 	"net/http"
 )
@@ -14,17 +14,45 @@ type User struct {
 	HasLicense       bool   `json:"has_license"`
 	NumberOfLicenses int    `json:"number_of_licenses"`
 	FullName         string `json:"full_name"`
+	JWT              string `json:"jwt"`
+}
+type receivedUserRequest struct {
+	Id string `json:"id"`
 }
 
+// 	data, err = io.ReadAll(res.Body)
+// 	if err != nil {
+// 		return exploreRes, err
+// 	}
+// 	c.Cache.Add(path, data)
+// }
+// if err = json.Unmarshal(data, &exploreRes); err != nil {
+// 	return exploreRes, err
+
 func getUser(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Fetching User")
-	id := r.PathValue("id")
-	fmt.Println("userId:", id)
+	var user User
+	var request receivedUserRequest
+
+	log.Println("Fetching User")
+
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := json.Unmarshal(data, &request); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	id := request.Id
+
+	log.Println("Received user ID:", id)
+
 	if len(id) < 1 {
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	var user User
+
 	query := "SELECT email, has_license, number_of_licenses, id FROM users WHERE id=$1"
 	if err := db.QueryRow(query, id).Scan(&user.Email, &user.HasLicense, &user.NumberOfLicenses, &user.Id); err != nil {
 		if err == sql.ErrNoRows {
@@ -43,10 +71,16 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to encode user data to json", http.StatusInternalServerError)
 		return
 	}
-
-	fmt.Println("userId:", id)
 }
 
-func patchUser(w http.ResponseWriter, r *http.Request)  {}
-func postUser(w http.ResponseWriter, r *http.Request)   {}
-func deleteUser(w http.ResponseWriter, r *http.Request) {}
+func patchUser(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, "Method not yet implemented", http.StatusNotFound)
+}
+
+func postUser(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, "Method not yet implemented", http.StatusNotFound)
+}
+
+func deleteUser(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, "Method not yet implemented", http.StatusNotFound)
+}
