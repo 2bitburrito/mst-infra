@@ -1,10 +1,12 @@
 package main
 
 import (
+	"api/config"
 	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	_ "github.com/lib/pq"
 )
@@ -16,6 +18,8 @@ type Response struct {
 }
 
 var db *sql.DB
+
+var API_KEY = os.Getenv("API_KEY")
 
 func init() {
 	dbUrl, err := CheckEnv()
@@ -51,6 +55,8 @@ func setupRouter() *http.ServeMux {
 
 	router.HandleFunc("GET /api/license/check/", checkLicense)
 
+	router.HandleFunc("POST /api/create-login-code", checkKeysMiddleware(createLoginCode))
+
 	return router
 }
 
@@ -60,9 +66,23 @@ func checkHealth(w http.ResponseWriter, req *http.Request) {
 	w.Write([]byte("OK"))
 }
 
+func checkKeysMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	cfg, _ := config.LoadConfig()
+	return func(w http.ResponseWriter, r *http.Request) {
+		apiKey := r.Header.Get("X-API-Key")
+		fmt.Println("Our api key:", cfg.ApiKey)
+		fmt.Println("Received api key:", apiKey)
+		if apiKey != cfg.ApiKey {
+			http.Error(w, "Unauthorized X-API-Key", http.StatusUnauthorized)
+			return
+		}
+		next(w, r)
+	}
+}
+
 func main() {
 	router := setupRouter()
-	const port = "2000"
+	cfg, _ := config.LoadConfig()
 	if db == nil {
 		log.Fatalf("database connection is not established")
 	}
@@ -73,8 +93,8 @@ func main() {
 	fmt.Println("db ping success")
 	server := &http.Server{
 		Handler: router,
-		Addr:    ":" + port,
+		Addr:    ":" + cfg.Port,
 	}
-	fmt.Println("Running on port:", port)
+	fmt.Println("Running on port:", cfg.Port)
 	server.ListenAndServe()
 }
