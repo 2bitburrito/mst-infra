@@ -22,13 +22,13 @@ func Verify(cognitoPoolId, userId, jwt string) (bool, error) {
 		log.Printf("Error: %s\n", err)
 		return false, err
 	}
-	aud, err := payload.GetAudience()
+	subject, err := payload.GetSubject()
 	if err != nil {
 		log.Printf("Error: %s\n", err)
 		return false, err
 	}
 
-	log.Println("AUD from resp:", aud)
+	log.Printf("Received subject from cognito JWT check: %v", subject)
 	return true, nil
 }
 

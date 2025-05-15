@@ -20,16 +20,7 @@ type receivedUserRequest struct {
 	Id string `json:"id"`
 }
 
-// 	data, err = io.ReadAll(res.Body)
-// 	if err != nil {
-// 		return exploreRes, err
-// 	}
-// 	c.Cache.Add(path, data)
-// }
-// if err = json.Unmarshal(data, &exploreRes); err != nil {
-// 	return exploreRes, err
-
-func getUser(w http.ResponseWriter, r *http.Request) {
+func (api *API) getUser(w http.ResponseWriter, r *http.Request) {
 	var user User
 	var request receivedUserRequest
 
@@ -73,14 +64,14 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func patchUser(w http.ResponseWriter, r *http.Request) {
+func (api *API) patchUser(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Method not yet implemented", http.StatusNotFound)
 }
 
-func postUser(w http.ResponseWriter, r *http.Request) {
+func (api *API) postUser(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Method not yet implemented", http.StatusNotFound)
 }
 
-func deleteUser(w http.ResponseWriter, r *http.Request) {
+func (api *API) deleteUser(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Method not yet implemented", http.StatusNotFound)
 }

@@ -2,21 +2,22 @@ package main
 
 import (
 	"api/config"
+	"api/store"
 	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	_ "github.com/lib/pq"
 )
 
-type Response struct {
-	Valid    bool   `json:"valid"`
-	Messages string `json:"message,omitempty"`
-	Error    string `json:"error,omitempty"`
-}
-
 var db *sql.DB
+
+type API struct {
+	db                *sql.DB
+	verificationStore *store.VerificationStore
+}
 
 func init() {
 	cfg, _ := config.LoadConfig()
@@ -38,28 +39,29 @@ func init() {
 	}
 }
 
-func setupRouter() *http.ServeMux {
+func (api *API) setupRouter() *http.ServeMux {
 	router := http.NewServeMux()
 
-	router.HandleFunc("/api/check-health", checkHealth)
+	router.HandleFunc("/api/check-health", api.checkHealth)
 
-	router.HandleFunc("POST /api/user", postUser)
-	router.HandleFunc("PATCH /api/user/{id}", patchUser)
-	router.HandleFunc("GET /api/user/{id}", getUser)
-	router.HandleFunc("DELETE /api/user", deleteUser)
+	router.HandleFunc("POST /api/user", api.postUser)
+	router.HandleFunc("PATCH /api/user/{id}", api.patchUser)
+	router.HandleFunc("GET /api/user/{id}", api.getUser)
+	router.HandleFunc("DELETE /api/user", api.deleteUser)
 
-	router.HandleFunc("POST /api/license, port", postLicense)
-	router.HandleFunc("PATCH /api/license/{id}", patchLicense)
-	router.HandleFunc("GET /api/license/{id}", getLicense)
+	router.HandleFunc("POST /api/license, port", api.postLicense)
+	router.HandleFunc("PATCH /api/license/{id}", api.patchLicense)
+	router.HandleFunc("GET /api/license/{id}", api.getLicense)
 
-	router.HandleFunc("GET /api/license/check/", checkLicense)
+	router.HandleFunc("GET /api/license/check/", api.checkLicense)
 
-	router.HandleFunc("POST /api/create-login-code", createLoginCode)
+	router.HandleFunc("POST /api/create-login-code", api.createLoginCode)
 
 	return router
 }
 
-func checkHealth(w http.ResponseWriter, req *http.Request) {
+func (api *API) checkHealth(w http.ResponseWriter, req *http.Request) {
+	w.Header().Del("Content-Type")
 	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("OK"))
@@ -73,6 +75,7 @@ func middlewareSetup(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
+		w.Header().Add("Content-Type", "application/json")
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -92,13 +95,20 @@ func middlewareSetup(next http.Handler) http.Handler {
 
 func main() {
 	cfg, _ := config.LoadConfig()
-	router := setupRouter()
+	verificationStore := store.CreateVerificationStore(2*time.Minute, 20*time.Minute)
+
+	api := &API{
+		db:                db,
+		verificationStore: verificationStore,
+	}
+	router := api.setupRouter()
 	handler := middlewareSetup(router)
 
 	server := &http.Server{
 		Handler: handler,
 		Addr:    ":" + cfg.Port,
 	}
-	fmt.Println("Running on port:", cfg.Port)
+
+	log.Println("Running on port:", cfg.Port)
 	server.ListenAndServe()
 }

@@ -5,10 +5,11 @@ import (
 	"api/jwt"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 )
 
-func createLoginCode(w http.ResponseWriter, r *http.Request) {
+func (api *API) createLoginCode(w http.ResponseWriter, r *http.Request) {
 	cfg, _ := config.LoadConfig()
 	var user User
 
@@ -16,10 +17,29 @@ func createLoginCode(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
+		log.Printf("error in Jwt Verify %w", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 	defer r.Body.Close()
 
 	// Verify the jwt with cognito
-	jwt.Verify(cfg.CognitoPoolID, user.Id, user.JWT)
+	verified, err := jwt.Verify(cfg.CognitoPoolID, user.Id, user.JWT)
+	if err != nil || !verified {
+		log.Printf("error in Jwt Verify %w", err)
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	otc := api.verificationStore.New(user.Id)
+	returnObj := map[string]string{
+		"otc": otc,
+	}
+	returnData, err := json.Marshal(returnObj)
+	if err != nil {
+		log.Printf("error marshalling otc: %w", err)
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(returnData)
 }

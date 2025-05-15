@@ -19,18 +19,18 @@ const (
 	PlanBeta  PlanType = "beta"
 )
 
-func postLicense(w http.ResponseWriter, r *http.Request) {
+func (api *API) postLicense(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Method not yet implemented", http.StatusNotFound)
 }
 
-func patchLicense(w http.ResponseWriter, r *http.Request) {
+func (api *API) patchLicense(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Method not yet implemented", http.StatusNotFound)
 }
 
-func getLicense(w http.ResponseWriter, r *http.Request) {
+func (api *API) getLicense(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Method not yet implemented", http.StatusNotFound)
 }
 
-func checkLicense(w http.ResponseWriter, r *http.Request) {
+func (api *API) checkLicense(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Method not yet implemented", http.StatusNotFound)
 }

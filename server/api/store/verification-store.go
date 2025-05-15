@@ -8,36 +8,38 @@ import (
 )
 
 type VerificationStore struct {
-	Map             map[userId]VerificationCode
+	Map             map[string]verificationCode
 	TimeoutDuration time.Duration
 	M               sync.Mutex
 }
 
-type VerificationCode struct {
+type verificationCode struct {
 	CreatedAt time.Time
 	Code      string
 }
 
-type userId string
-
-func CreateStore(validityDuration time.Duration, reapDuration time.Duration) *VerificationStore {
+func CreateVerificationStore(validityDuration time.Duration, reapDuration time.Duration) *VerificationStore {
 	store := VerificationStore{
+		Map:             make(map[string]verificationCode),
 		TimeoutDuration: validityDuration,
 	}
 	go store.reapLoop(reapDuration)
 	return &store
 }
 
-func (s *VerificationStore) Set(id userId) {
+func (s *VerificationStore) New(id string) string {
 	s.M.Lock()
 	defer s.M.Unlock()
-	s.Map[id] = VerificationCode{
+	otc := GenerateOTC()
+
+	s.Map[id] = verificationCode{
 		CreatedAt: time.Now().UTC(),
-		Code:      GenerateOTC(),
+		Code:      otc,
 	}
+	return otc
 }
 
-func (s *VerificationStore) Get(id userId) (string, error) {
+func (s *VerificationStore) Get(id string) (string, error) {
 	s.M.Lock()
 	defer s.M.Unlock()
 
@@ -55,7 +57,7 @@ func (s *VerificationStore) Get(id userId) (string, error) {
 	return obj.Code, nil
 }
 
-func (s *VerificationStore) Delete(id userId) {
+func (s *VerificationStore) Delete(id string) {
 	s.M.Lock()
 	defer s.M.Unlock()
 
