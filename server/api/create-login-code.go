@@ -17,7 +17,7 @@ func (api *API) createLoginCode(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
-		log.Printf("error in Jwt Verify %w", err)
+		log.Printf("error in Jwt Verify %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 	defer r.Body.Close()
@@ -25,7 +25,7 @@ func (api *API) createLoginCode(w http.ResponseWriter, r *http.Request) {
 	// Verify the jwt with cognito
 	verified, err := jwt.Verify(cfg.CognitoPoolID, user.Id, user.JWT)
 	if err != nil || !verified {
-		log.Printf("error in Jwt Verify %w", err)
+		log.Printf("error in Jwt Verify %v", err)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
@@ -36,7 +36,7 @@ func (api *API) createLoginCode(w http.ResponseWriter, r *http.Request) {
 	}
 	returnData, err := json.Marshal(returnObj)
 	if err != nil {
-		log.Printf("error marshalling otc: %w", err)
+		log.Printf("error marshalling otc: %v", err)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
