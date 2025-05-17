@@ -4,7 +4,6 @@ import (
 	"api/config"
 	"api/jwt"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 )
@@ -13,7 +12,7 @@ func (api *API) createLoginCode(w http.ResponseWriter, r *http.Request) {
 	cfg, _ := config.LoadConfig()
 	var user User
 
-	fmt.Println("Creating Login Code")
+	log.Println("Creating Login Code")
 
 	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
@@ -34,6 +33,7 @@ func (api *API) createLoginCode(w http.ResponseWriter, r *http.Request) {
 	returnObj := map[string]string{
 		"otc": otc,
 	}
+
 	returnData, err := json.Marshal(returnObj)
 	if err != nil {
 		log.Printf("error marshalling otc: %v", err)
