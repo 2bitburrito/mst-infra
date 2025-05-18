@@ -72,8 +72,16 @@ func middlewareSetup(next http.Handler) http.Handler {
 	cfg, _ := config.LoadConfig()
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		allowedOrigins := map[string]bool{
+			"http://localhost:3000":      true,
+			"http://localhost:5173":      true,
+			"https://metasoundtools.com": true,
+		}
 		// CORS config
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+		origin := r.Header.Get("Origin")
+		if allowedOrigins[origin] {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
 		w.Header().Add("Content-Type", "application/json")
