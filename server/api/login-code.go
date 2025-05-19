@@ -72,10 +72,14 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	log.Printf("Got otc from store: %v", token)
 	if token != request.OneTimeToken {
-		log.Printf("Invalid Token. \nReceived: %v \nWant: %v", request.OneTimeToken, token)
+		log.Printf("Invalid Token. \tReceived: %v \tWant: %v", request.OneTimeToken, token)
 		http.Error(w, "Invalid token received", http.StatusUnauthorized)
 		return
 	}
+	log.Printf("Successful Otc Match")
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"ok"}`))
 }

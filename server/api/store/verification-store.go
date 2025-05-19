@@ -43,6 +43,8 @@ func (s *VerificationStore) Get(id string) (string, error) {
 	s.M.Lock()
 	defer s.M.Unlock()
 
+	log.Printf("received id: %v", id)
+
 	obj, exists := s.Map[id]
 	if !exists {
 		return "", fmt.Errorf("ID %s doesn't exist in store", id)
