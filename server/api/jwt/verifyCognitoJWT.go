@@ -6,7 +6,7 @@ import (
 	cognitoJwtVerify "github.com/jhosan7/cognito-jwt-verify"
 )
 
-func Verify(cognitoPoolId, userId, jwt string) (bool, error) {
+func VerifyCognitoJWT(cognitoPoolId, userId, jwt string) (bool, error) {
 	cognitoCfg := cognitoJwtVerify.Config{
 		UserPoolId: cognitoPoolId,
 		ClientId:   userId,
