@@ -102,10 +102,14 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 
 	// Create JWT
 	jwt, err := createJWT(licence.LicenseType, licence.UserId, licence.MachineId, licence.LicenseKey)
+	if err != nil {
+		log.Printf("error encoding jwt %v", err.Error())
+		http.Error(w, "internal error", http.StatusInternalServerError)
+	}
 	data := map[string]string{"jwt": jwt}
 	err = json.NewEncoder(w).Encode(data)
 	if err != nil {
-		log.Printf("error encoding jwt %v", err.Error())
+		log.Printf("error encoding json %v", err.Error())
 		http.Error(w, "internal error", http.StatusInternalServerError)
 	}
 
