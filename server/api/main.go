@@ -12,31 +12,9 @@ import (
 	_ "github.com/lib/pq"
 )
 
-var db *sql.DB
-
 type API struct {
 	db                *sql.DB
 	verificationStore *store.VerificationStore
-}
-
-func init() {
-	cfg, _ := config.LoadConfig()
-
-	db, err := sql.Open("postgres", cfg.DB.URL)
-	if err != nil {
-		fmt.Println("error establishing db connection", err.Error())
-		panic(err)
-	}
-
-	db.SetConnMaxLifetime(0)
-	db.SetMaxIdleConns(3)
-	db.SetMaxOpenConns(3)
-	err = db.Ping()
-	if err != nil {
-		log.Fatal(err)
-	} else {
-		log.Println("DB Ping Successful")
-	}
 }
 
 func (api *API) setupRouter() *http.ServeMux {
@@ -53,7 +31,7 @@ func (api *API) setupRouter() *http.ServeMux {
 	router.HandleFunc("PATCH /api/license/{id}", api.patchLicense)
 	router.HandleFunc("GET /api/license/{id}", api.getLicense)
 
-	router.HandleFunc("GET /api/license/check/", api.checkLicense)
+	router.HandleFunc("POST /api/license/check/", api.checkLicense)
 
 	router.HandleFunc("POST /api/create-login-code", api.createLoginCode)
 	router.HandleFunc("POST /api/check-login-code", api.checkLoginCode)
@@ -92,11 +70,11 @@ func middlewareSetup(next http.Handler) http.Handler {
 
 		// Check API Key:
 		apiKey := r.Header.Get("X-API-Key")
-		log.Println("Successful Api Key Match")
 		if apiKey != cfg.ApiKey {
 			http.Error(w, "Unauthorized X-API-Key", http.StatusUnauthorized)
 			return
 		}
+		log.Println("Successful Api Key Match")
 
 		next.ServeHTTP(w, r)
 	})
@@ -104,12 +82,33 @@ func middlewareSetup(next http.Handler) http.Handler {
 
 func main() {
 	cfg, _ := config.LoadConfig()
-	verificationStore := store.CreateVerificationStore(2*time.Minute, 20*time.Minute)
+	verificationStore := store.CreateVerificationStore(1*time.Minute, 10*time.Minute)
+
+	var db *sql.DB
+	db, err := sql.Open("postgres", cfg.DB.URL)
+	if err != nil {
+		fmt.Println("error establishing db connection", err.Error())
+		panic(err)
+	}
+
+	db.SetConnMaxLifetime(0)
+	db.SetMaxIdleConns(3)
+	db.SetMaxOpenConns(3)
+	err = db.Ping()
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		log.Println("DB Ping Successful")
+	}
 
 	api := &API{
 		db:                db,
 		verificationStore: verificationStore,
 	}
+	if api.db == nil {
+		panic("DB IS NIL")
+	}
+
 	router := api.setupRouter()
 	handler := middlewareSetup(router)
 

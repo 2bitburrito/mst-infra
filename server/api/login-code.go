@@ -16,8 +16,9 @@ type CreateLoginCodeRequest struct {
 }
 
 type LoginCodeRequest struct {
-	UserID       string `json:"userId"`
-	OneTimeToken string `json:"otc"`
+	UserID       *string `json:"userId,omitempty"`
+	OneTimeToken string  `json:"otc"`
+	MachineID    string  `json:"machineId"`
 }
 
 func (api *API) createLoginCode(w http.ResponseWriter, r *http.Request) {
@@ -69,14 +70,32 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	token, err := api.verificationStore.Get(request.UserID)
-	if err != nil {
-		log.Printf("Error:  %v", err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	var token string
+
+	if request.UserID == nil {
+		// Get Token from store from OTC
+		fmt.Println("HERE")
+		var userId string
+		userId, token, err = api.verificationStore.GetFromOTC(request.OneTimeToken)
+		if err != nil {
+			log.Printf("Error:  %v", err.Error())
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		request.UserID = &userId
+	} else {
+		// Get Token from store matching userID:
+		fmt.Println("THERE")
+		token, err = api.verificationStore.Get(*request.UserID)
+		if err != nil {
+			log.Printf("Error:  %v", err.Error())
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
 	log.Printf("Retrieved OTC from store: %v", token)
+
 	if token != request.OneTimeToken {
 		log.Printf("Invalid Token. \tReceived: %v \tWant: %v", request.OneTimeToken, token)
 		http.Error(w, "Invalid token received", http.StatusUnauthorized)
@@ -88,8 +107,14 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 	var licence License
 	fmt.Println("Retrieving Licence")
 
-	query := "SELECT licence_type, machine_id, licence_key FROM licences WHERE id=$1"
-	if err := db.QueryRow(query, request.UserID).Scan(&licence.LicenseType, &licence.MachineId, &licence.LicenseKey); err != nil {
+	if api.db == nil {
+		log.Printf("Error: No pointer to db")
+		http.Error(w, "Couldn't contact DB", http.StatusNotFound)
+		return
+	}
+
+	query := "SELECT licence_type, machine_id, licence_key FROM licences WHERE user_id=$1"
+	if err := api.db.QueryRow(query, request.UserID).Scan(&licence.LicenseType, &licence.MachineId, &licence.LicenseKey); err != nil {
 		if err == sql.ErrNoRows {
 			log.Printf("error no rows matching. %v", err)
 			http.Error(w, "user id not found in licence table", http.StatusNotFound)
@@ -100,19 +125,36 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If machine id is new or nil update it
+	if licence.MachineId == nil || *licence.MachineId != request.MachineID {
+		// *licence.MachineId = request.MachineID
+		_, err = api.db.Exec(`
+			UPDATE licences
+			SET machine_id = $1
+			WHERE licence_key = $2`,
+			request.MachineID, licence.LicenseKey)
+		if err != nil {
+			log.Printf("error updating machine_id %v", err.Error())
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+	}
+
 	// Create JWT
-	jwt, err := createJWT(licence.LicenseType, licence.UserId, licence.MachineId, licence.LicenseKey)
+	jwt, err := createJWT(licence.LicenseType, *request.UserID, *licence.MachineId, licence.LicenseKey)
 	if err != nil {
 		log.Printf("error encoding jwt %v", err.Error())
 		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
 	}
+
+	w.Header().Set("Content-Type", "application/json")
 	data := map[string]string{"jwt": jwt}
 	err = json.NewEncoder(w).Encode(data)
 	if err != nil {
 		log.Printf("error encoding json %v", err.Error())
 		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	fmt.Println("JWT issued to :", *request.UserID)
 }

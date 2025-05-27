@@ -6,7 +6,7 @@ import (
 
 type License struct {
 	UserId      string   `json:"user_id"`
-	MachineId   string   `json:"machine_id"`
+	MachineId   *string  `json:"machine_id"`
 	LicenseType PlanType `json:"license_type"`
 	LicenseKey  string   `json:"license_key"`
 }

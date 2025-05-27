@@ -39,11 +39,29 @@ func (s *VerificationStore) New(id string) string {
 	return otc
 }
 
+func (s *VerificationStore) GetFromOTC(otc string) (string, string, error) {
+	s.M.Lock()
+	defer s.M.Unlock()
+	log.Println("Checking VerificationStore using OTC")
+
+	now := time.Now()
+
+	for id, code := range s.Map {
+		if code.Code == otc {
+			expiryTime := code.CreatedAt.Add(s.TimeoutDuration)
+			if expiryTime.Before(now) {
+				return "", "", fmt.Errorf("otc: %s has timed out", otc)
+			}
+			return id, code.Code, nil
+		}
+	}
+
+	return "", "", fmt.Errorf("otc %s doesn't exist in store", otc)
+}
+
 func (s *VerificationStore) Get(id string) (string, error) {
 	s.M.Lock()
 	defer s.M.Unlock()
-
-	log.Printf("received id: %v", id)
 
 	obj, exists := s.Map[id]
 	if !exists {

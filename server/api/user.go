@@ -45,7 +45,7 @@ func (api *API) getUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := "SELECT email, has_license, number_of_licenses, id FROM users WHERE id=$1"
-	if err := db.QueryRow(query, id).Scan(&user.Email, &user.HasLicense, &user.NumberOfLicenses, &user.Id); err != nil {
+	if err := api.db.QueryRow(query, id).Scan(&user.Email, &user.HasLicense, &user.NumberOfLicenses, &user.Id); err != nil {
 		if err == sql.ErrNoRows {
 			log.Printf("error no rows matching. %v", err)
 			http.Error(w, "user id not found", http.StatusNotFound)

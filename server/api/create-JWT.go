@@ -2,15 +2,16 @@ package main
 
 import (
 	"crypto/ecdsa"
+	"fmt"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
 func createJWT(plan PlanType, userId, machineId, licenceKey string) (string, error) {
 	var (
-		key *ecdsa.PrivateKey
-		t   *jwt.Token
-		s   string
+		key       *ecdsa.PrivateKey
+		token     *jwt.Token
+		jwtString string
 	)
 
 	key, err := loadPrivateKey("../private.pem")
@@ -18,7 +19,9 @@ func createJWT(plan PlanType, userId, machineId, licenceKey string) (string, err
 		return "", err
 	}
 
-	t = jwt.NewWithClaims(jwt.SigningMethodES256,
+	fmt.Println("Args to creeateJWT:", userId, machineId, licenceKey)
+
+	token = jwt.NewWithClaims(jwt.SigningMethodES256,
 		jwt.MapClaims{
 			"iss":        "Meta-Sound-Tools",
 			"sub":        userId,
@@ -28,10 +31,10 @@ func createJWT(plan PlanType, userId, machineId, licenceKey string) (string, err
 			"exp":        nil,
 		})
 
-	s, err = t.SignedString(key)
+	jwtString, err = token.SignedString(key)
 	if err != nil {
 		return "", err
 	}
 
-	return s, nil
+	return jwtString, nil
 }
