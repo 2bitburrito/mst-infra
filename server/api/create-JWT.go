@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/ecdsa"
-	"fmt"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -18,8 +17,7 @@ func createJWT(plan PlanType, userId, machineId, licenceKey string) (string, err
 	if err != nil {
 		return "", err
 	}
-
-	fmt.Println("Args to creeateJWT:", userId, machineId, licenceKey)
+	// TODO: Fetch the correct licence and insure the correct exp is set
 
 	token = jwt.NewWithClaims(jwt.SigningMethodES256,
 		jwt.MapClaims{
