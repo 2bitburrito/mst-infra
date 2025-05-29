@@ -17,7 +17,7 @@ func createJWT(plan PlanType, userId, machineId, licenceKey string) (string, err
 	if err != nil {
 		return "", err
 	}
-	// TODO: Fetch the correct licence and insure the correct exp is set
+	// TODO: Fetch the correct licence and ensure the correct exp is set
 
 	token = jwt.NewWithClaims(jwt.SigningMethodES256,
 		jwt.MapClaims{
@@ -26,7 +26,7 @@ func createJWT(plan PlanType, userId, machineId, licenceKey string) (string, err
 			"machine":    machineId,
 			"plan":       plan,
 			"licenceKey": licenceKey,
-			"exp":        nil,
+			"exp":        "never",
 		})
 
 	jwtString, err = token.SignedString(key)

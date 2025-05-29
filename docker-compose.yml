@@ -1,0 +1,31 @@
+services:
+  backend:
+    build:
+      context: ./server/api
+      dockerfile: Dockerfile
+    container_name: mst-backend
+    ports:
+      - 2000:2000
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PWD}
+      DB_NAME: mst_db
+  db:
+    image: postgres
+    container_name: mst_db
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PWD}
+      POSTGRES_DB: mst_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
