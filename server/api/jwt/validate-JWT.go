@@ -9,9 +9,9 @@ import (
 )
 
 func ValidateJWT(tokenString string) (*Claims, error) {
-	key, err := utils.LoadPrivateKey()
+	key, err := utils.LoadPublicKey()
 	if err != nil {
-		return nil, fmt.Errorf("couldn't find private.pem file %v", err.Error())
+		return nil, fmt.Errorf("couldn't find public.pem file %v", err.Error())
 	}
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {

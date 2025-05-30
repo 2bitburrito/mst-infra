@@ -11,7 +11,7 @@ type Claims struct {
 	MachineID  string `json:"machine"`
 	Plan       string `json:"plan"`
 	LicenceKey string `json:"licenceKey"`
-	Expiry     string `json:"exp"`
+	Expiry     int64  `json:"exp"`
 }
 
 func mapClaimsToStruct(claims jwt.MapClaims) (*Claims, error) {

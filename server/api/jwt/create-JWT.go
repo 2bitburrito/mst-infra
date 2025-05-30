@@ -3,7 +3,6 @@ package jwt
 import (
 	"crypto/ecdsa"
 	"log"
-	"time"
 
 	"github.com/2bitburrito/mst-infra/server/api/utils"
 	"github.com/golang-jwt/jwt/v5"
@@ -14,7 +13,7 @@ type CreateJWTParams struct {
 	MachineId  *string
 	LicenceKey string
 	Plan       utils.PlanType
-	Expiry     time.Time
+	Expiry     int64
 }
 
 func CreateJWT(params CreateJWTParams) (string, error) {

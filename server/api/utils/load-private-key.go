@@ -8,9 +8,8 @@ import (
 	"os"
 )
 
-var privateKeyPath = "private.pem"
-
 func LoadPrivateKey() (*ecdsa.PrivateKey, error) {
+	privateKeyPath := "private.pem"
 	pemData, err := os.ReadFile(privateKeyPath)
 	if err != nil {
 		return nil, err
