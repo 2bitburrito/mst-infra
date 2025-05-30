@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	"crypto/ecdsa"
@@ -8,8 +8,10 @@ import (
 	"os"
 )
 
-func loadPrivateKey(path string) (*ecdsa.PrivateKey, error) {
-	pemData, err := os.ReadFile(path)
+var privateKeyPath = "private.pem"
+
+func LoadPrivateKey() (*ecdsa.PrivateKey, error) {
+	pemData, err := os.ReadFile(privateKeyPath)
 	if err != nil {
 		return nil, err
 	}

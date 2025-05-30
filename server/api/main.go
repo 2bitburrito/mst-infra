@@ -1,33 +1,38 @@
 package main
 
 import (
-	"api/config"
-	"api/store"
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
 
+	Queries "github.com/2bitburrito/mst-infra/db/sqlc"
+	"github.com/2bitburrito/mst-infra/server/api/config"
+	"github.com/2bitburrito/mst-infra/server/api/store"
+
 	_ "github.com/lib/pq"
 )
 
 type API struct {
 	db                *sql.DB
+	ctx               context.Context
+	queries           Queries.Queries
 	verificationStore *store.VerificationStore
 }
 
 func (api *API) setupRouter() *http.ServeMux {
 	router := http.NewServeMux()
 
-	router.HandleFunc("/api/check-health", api.checkHealth)
+	router.HandleFunc("/api/healthz", api.checkHealth)
 
 	router.HandleFunc("POST /api/user", api.postUser)
 	router.HandleFunc("PATCH /api/user/{id}", api.patchUser)
 	router.HandleFunc("GET /api/user/{id}", api.getUser)
 	router.HandleFunc("DELETE /api/user", api.deleteUser)
 
-	router.HandleFunc("POST /api/license, port", api.postLicense)
+	router.HandleFunc("POST /api/license", api.postLicense)
 	router.HandleFunc("PATCH /api/license/{id}", api.patchLicense)
 	router.HandleFunc("GET /api/license/{id}", api.getLicense)
 
@@ -101,8 +106,12 @@ func main() {
 		log.Println("DB Ping Successful")
 	}
 
+	queries := Queries.New(db)
+
 	api := &API{
 		db:                db,
+		ctx:               context.TODO(),
+		queries:           *queries,
 		verificationStore: verificationStore,
 	}
 	if api.db == nil {

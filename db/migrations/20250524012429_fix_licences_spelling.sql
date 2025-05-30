@@ -1,5 +1,13 @@
 -- +goose Up
 -- +goose StatementBegin
+DROP TABLE IF EXISTS licenses;
+
+
+CREATE TYPE licence_type_enum AS ENUM (
+    'trial',
+    'paid',
+    'beta'
+);
 CREATE TABLE IF NOT EXISTS licences (
     licence_key TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,

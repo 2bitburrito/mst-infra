@@ -1,13 +1,15 @@
 package main
 
 import (
-	"api/config"
-	"api/jwt"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/2bitburrito/mst-infra/server/api/config"
+	"github.com/2bitburrito/mst-infra/server/api/jwt"
+	"github.com/2bitburrito/mst-infra/server/api/utils"
 )
 
 type CreateLoginCodeRequest struct {
@@ -74,7 +76,6 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 
 	if request.UserID == nil {
 		// Get Token from store from OTC
-		fmt.Println("HERE")
 		var userId string
 		userId, token, err = api.verificationStore.GetFromOTC(request.OneTimeToken)
 		if err != nil {
@@ -85,7 +86,6 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 		request.UserID = &userId
 	} else {
 		// Get Token from store matching userID:
-		fmt.Println("THERE")
 		token, err = api.verificationStore.Get(*request.UserID)
 		if err != nil {
 			log.Printf("Error:  %v", err.Error())
@@ -104,7 +104,7 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Successful OTC Match")
 
 	// Get Licence details
-	var licence License
+	var licence utils.License
 	fmt.Println("Retrieving Licence")
 
 	if api.db == nil {
@@ -141,7 +141,14 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create JWT
-	jwt, err := createJWT(licence.LicenseType, *request.UserID, *licence.MachineId, licence.LicenseKey)
+	params := jwt.CreateJWTParams{
+		UserId:     *request.UserID,
+		MachineId:  licence.MachineId,
+		LicenceKey: licence.LicenseKey,
+		Plan:       licence.LicenseType,
+	}
+
+	jwt, err := jwt.CreateJWT(params)
 	if err != nil {
 		log.Printf("error encoding jwt %v", err.Error())
 		http.Error(w, "internal error", http.StatusInternalServerError)

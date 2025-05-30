@@ -1,10 +1,11 @@
 package tests
 
 import (
-	"api/store"
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/2bitburrito/mst-infra/server/api/store"
 )
 
 func TestVerificationStore_NewDelete(t *testing.T) {
