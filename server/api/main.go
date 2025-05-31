@@ -28,6 +28,7 @@ func (api *API) setupRouter() *http.ServeMux {
 	router.HandleFunc("/api/healthz", api.checkHealth)
 
 	router.HandleFunc("POST /api/user", api.postUser)
+	router.HandleFunc("POST /api/cognito-user", api.postCognitoUser)
 	router.HandleFunc("PATCH /api/user/{id}", api.patchUser)
 	router.HandleFunc("GET /api/user/{id}", api.getUser)
 	router.HandleFunc("DELETE /api/user", api.deleteUser)

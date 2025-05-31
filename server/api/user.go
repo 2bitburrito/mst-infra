@@ -6,6 +6,9 @@ import (
 	"io"
 	"log"
 	"net/http"
+
+	database "github.com/2bitburrito/mst-infra/db/sqlc"
+	"github.com/google/uuid"
 )
 
 type User struct {
@@ -18,6 +21,13 @@ type User struct {
 }
 type receivedUserRequest struct {
 	Id string `json:"id"`
+}
+
+type CognitoUser struct {
+	Sub                uuid.UUID `json:"sub"`
+	Email              string    `json:"email"`
+	Name               string    `json:"name"`
+	ConfirmationStatus string    `json:"user_status"`
 }
 
 func (api *API) getUser(w http.ResponseWriter, r *http.Request) {
@@ -70,6 +80,55 @@ func (api *API) patchUser(w http.ResponseWriter, r *http.Request) {
 
 func (api *API) postUser(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Method not yet implemented", http.StatusNotFound)
+}
+
+func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
+	var cognitoUser CognitoUser
+
+	log.Println("Recieved Cognito Request for:", cognitoUser.Email)
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.Unmarshal(data, &cognitoUser); err != nil {
+		log.Println("error unmarshalling json", err)
+	}
+
+	nonNullStr := sql.NullString{
+		String: cognitoUser.Email,
+		Valid:  true,
+	}
+	email, err := api.queries.GetBetaEmail(api.ctx, nonNullStr)
+	if err != nil {
+		log.Printf("error in while getting beta email: %v", err)
+		http.Error(w, "error retrieving email from beta list", http.StatusInternalServerError)
+	}
+	if email.Valid {
+		// this means we have a beta licence
+		// So we update the userid correctly
+		api.queries.UpdateUserId(api.ctx, database.UpdateUserIdParams{
+			ID:    cognitoUser.Sub,
+			Email: cognitoUser.Email,
+		})
+		w.WriteHeader(http.StatusOK)
+		log.Println("Updated user ID for Beta User: ", cognitoUser.Email)
+		return
+	}
+
+	args := database.InsertUserParams{
+		ID:                 cognitoUser.Sub,
+		Email:              cognitoUser.Email,
+		FullName:           cognitoUser.Name,
+		HasLicense:         false,
+		SubscribedToEmails: false,
+	}
+	if err := api.queries.InsertUser(api.ctx, args); err != nil {
+		log.Printf("error in while writing cognito user to db: %v", err)
+		http.Error(w, "error in while writing cognito user to db", http.StatusInternalServerError)
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func (api *API) deleteUser(w http.ResponseWriter, r *http.Request) {

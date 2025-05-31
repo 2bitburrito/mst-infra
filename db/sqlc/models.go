@@ -55,6 +55,10 @@ func (ns NullLicenceTypeEnum) Value() (driver.Value, error) {
 	return string(ns.LicenceTypeEnum), nil
 }
 
+type BetaLicence struct {
+	Email sql.NullString
+}
+
 type Licence struct {
 	LicenceKey  string
 	UserID      uuid.UUID

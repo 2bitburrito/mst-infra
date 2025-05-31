@@ -28,6 +28,17 @@ func (q *Queries) ChangeMachineID(ctx context.Context, arg ChangeMachineIDParams
 	return err
 }
 
+const getBetaEmail = `-- name: GetBetaEmail :one
+SELECT email FROM beta_licences
+WHERE email = $1
+`
+
+func (q *Queries) GetBetaEmail(ctx context.Context, email sql.NullString) (sql.NullString, error) {
+	row := q.db.QueryRowContext(ctx, getBetaEmail, email)
+	err := row.Scan(&email)
+	return email, err
+}
+
 const getLicence = `-- name: GetLicence :one
 SELECT licence_key, user_id, machine_id, created_at, last_used_at, licence_type, expiry FROM licences
 where licence_key = $1 LIMIT 1
@@ -68,6 +79,31 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 	return i, err
 }
 
+const insertUser = `-- name: InsertUser :exec
+INSERT INTO users (id, email, full_name, has_license, subscribed_to_emails) 
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id
+`
+
+type InsertUserParams struct {
+	ID                 uuid.UUID
+	Email              string
+	FullName           string
+	HasLicense         bool
+	SubscribedToEmails bool
+}
+
+func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) error {
+	_, err := q.db.ExecContext(ctx, insertUser,
+		arg.ID,
+		arg.Email,
+		arg.FullName,
+		arg.HasLicense,
+		arg.SubscribedToEmails,
+	)
+	return err
+}
+
 const removeMachineID = `-- name: RemoveMachineID :exec
 UPDATE licences
 SET machine_id = null
@@ -76,5 +112,21 @@ WHERE licence_key = $1
 
 func (q *Queries) RemoveMachineID(ctx context.Context, licenceKey string) error {
 	_, err := q.db.ExecContext(ctx, removeMachineID, licenceKey)
+	return err
+}
+
+const updateUserId = `-- name: UpdateUserId :exec
+UPDATE users
+SET id = $1
+WHERE email = $2
+`
+
+type UpdateUserIdParams struct {
+	ID    uuid.UUID
+	Email string
+}
+
+func (q *Queries) UpdateUserId(ctx context.Context, arg UpdateUserIdParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserId, arg.ID, arg.Email)
 	return err
 }

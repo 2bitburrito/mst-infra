@@ -1,7 +1,5 @@
 #!/bin/bash
 
-#goose postgres "postgres://mst_admin:Q70AqiE8KOfRIHxmqmN4@tf-20250502141116491500000001.cvq42ycqkt4f.us-west-1.rds.amazonaws.com:5432/mst_db" up
-
 if [ -f .env.goose ]; then
   source .env.goose
 else
