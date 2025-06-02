@@ -12,6 +12,24 @@ import (
 	"github.com/google/uuid"
 )
 
+const addBetaLicence = `-- name: AddBetaLicence :one
+INSERT INTO licences (user_id, machine_id, licence_type, expiry)
+VALUES ($1, $2, "beta", NOW() + INTERVAL '14 days')
+RETURNING licence_key
+`
+
+type AddBetaLicenceParams struct {
+	UserID    uuid.UUID
+	MachineID sql.NullString
+}
+
+func (q *Queries) AddBetaLicence(ctx context.Context, arg AddBetaLicenceParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, addBetaLicence, arg.UserID, arg.MachineID)
+	var licence_key string
+	err := row.Scan(&licence_key)
+	return licence_key, err
+}
+
 const changeMachineID = `-- name: ChangeMachineID :exec
 UPDATE licences
 SET machine_id = $2

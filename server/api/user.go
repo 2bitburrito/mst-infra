@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -12,12 +13,12 @@ import (
 )
 
 type User struct {
-	Id               string `json:"id"`
-	Email            string `json:"email"`
-	HasLicense       bool   `json:"has_license"`
-	NumberOfLicenses int    `json:"number_of_licenses"`
-	FullName         string `json:"full_name"`
-	JWT              string `json:"jwt"`
+	Id               uuid.UUID `json:"id"`
+	Email            string    `json:"email"`
+	HasLicense       bool      `json:"has_license"`
+	NumberOfLicenses int       `json:"number_of_licenses"`
+	FullName         string    `json:"full_name"`
+	JWT              string    `json:"jwt"`
 }
 type receivedUserRequest struct {
 	Id string `json:"id"`
@@ -85,16 +86,20 @@ func (api *API) postUser(w http.ResponseWriter, r *http.Request) {
 func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 	var cognitoUser CognitoUser
 
-	log.Println("Recieved Cognito Request for:", cognitoUser.Email)
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
+		log.Println("error reading body json json", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	defer r.Body.Close()
 
 	if err := json.Unmarshal(data, &cognitoUser); err != nil {
 		log.Println("error unmarshalling json", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+	log.Println("Recieved Cognito Request for:", cognitoUser.Email)
 
 	nonNullStr := sql.NullString{
 		String: cognitoUser.Email,
@@ -102,16 +107,26 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 	}
 	email, err := api.queries.GetBetaEmail(api.ctx, nonNullStr)
 	if err != nil {
-		log.Printf("error in while getting beta email: %v", err)
-		http.Error(w, "error retrieving email from beta list", http.StatusInternalServerError)
+		if errors.Is(err, sql.ErrNoRows) {
+			email.Valid = false
+		} else {
+			log.Printf("error in while getting beta email: %v", err)
+			http.Error(w, "error retrieving email from beta list", http.StatusInternalServerError)
+			return
+		}
 	}
 	if email.Valid {
 		// this means we have a beta licence
 		// So we update the userid correctly
-		api.queries.UpdateUserId(api.ctx, database.UpdateUserIdParams{
+		err := api.queries.UpdateUserId(api.ctx, database.UpdateUserIdParams{
 			ID:    cognitoUser.Sub,
 			Email: cognitoUser.Email,
 		})
+		if err != nil {
+			log.Println("error updating user id ", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 		log.Println("Updated user ID for Beta User: ", cognitoUser.Email)
 		return
@@ -124,9 +139,11 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 		HasLicense:         false,
 		SubscribedToEmails: false,
 	}
+	log.Println("Inserting user: ", args)
 	if err := api.queries.InsertUser(api.ctx, args); err != nil {
 		log.Printf("error in while writing cognito user to db: %v", err)
 		http.Error(w, "error in while writing cognito user to db", http.StatusInternalServerError)
+		return
 	}
 	w.WriteHeader(http.StatusOK)
 }

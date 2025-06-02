@@ -5,10 +5,12 @@ import (
 	"log"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type VerificationStore struct {
-	Map             map[string]verificationCode
+	Map             map[uuid.UUID]verificationCode
 	TimeoutDuration time.Duration
 	M               sync.Mutex
 }
@@ -20,14 +22,14 @@ type verificationCode struct {
 
 func CreateVerificationStore(validityDuration time.Duration, reapDuration time.Duration) *VerificationStore {
 	store := VerificationStore{
-		Map:             make(map[string]verificationCode),
+		Map:             make(map[uuid.UUID]verificationCode),
 		TimeoutDuration: validityDuration,
 	}
 	go store.reapLoop(reapDuration)
 	return &store
 }
 
-func (s *VerificationStore) New(id string) string {
+func (s *VerificationStore) New(id uuid.UUID) string {
 	s.M.Lock()
 	defer s.M.Unlock()
 	otc := GenerateOTC()
@@ -39,7 +41,7 @@ func (s *VerificationStore) New(id string) string {
 	return otc
 }
 
-func (s *VerificationStore) GetFromOTC(otc string) (string, string, error) {
+func (s *VerificationStore) GetFromOTC(otc string) (uuid.UUID, string, error) {
 	s.M.Lock()
 	defer s.M.Unlock()
 	log.Println("Checking VerificationStore using OTC")
@@ -50,16 +52,16 @@ func (s *VerificationStore) GetFromOTC(otc string) (string, string, error) {
 		if code.Code == otc {
 			expiryTime := code.CreatedAt.Add(s.TimeoutDuration)
 			if expiryTime.Before(now) {
-				return "", "", fmt.Errorf("otc: %s has timed out", otc)
+				return uuid.UUID{}, "", fmt.Errorf("otc: %s has timed out", otc)
 			}
 			return id, code.Code, nil
 		}
 	}
 
-	return "", "", fmt.Errorf("otc %s doesn't exist in store", otc)
+	return uuid.UUID{}, "", fmt.Errorf("otc %s doesn't exist in store", otc)
 }
 
-func (s *VerificationStore) Get(id string) (string, error) {
+func (s *VerificationStore) Get(id uuid.UUID) (string, error) {
 	s.M.Lock()
 	defer s.M.Unlock()
 
@@ -77,7 +79,7 @@ func (s *VerificationStore) Get(id string) (string, error) {
 	return obj.Code, nil
 }
 
-func (s *VerificationStore) Delete(id string) {
+func (s *VerificationStore) Delete(id uuid.UUID) {
 	s.M.Lock()
 	defer s.M.Unlock()
 

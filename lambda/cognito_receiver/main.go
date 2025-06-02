@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
 )
@@ -37,40 +38,42 @@ func handler(ctx context.Context, event CognitoEvent) (CognitoEvent, error) {
 	log.Println("User Attributes:", event.Request.UserAttributes)
 
 	user := event.Request.UserAttributes
-
-	if event.TriggerSource != "PostConfirmation_ConfirmSignUp" {
-		log.Println("Trigger source is not PostConfirmation_ConfirmSignUp")
-		return event, nil
-	}
-
 	apiKey := os.Getenv("API_KEY")
 	if len(apiKey) == 0 {
 		log.Println("apiKey not found")
 		return event, errors.New("DB_URL is not set")
 	}
 
-	body, err := json.Marshal(user)
+	if event.TriggerSource != "PostConfirmation_ConfirmSignUp" {
+		log.Println("Trigger source is not PostConfirmation_ConfirmSignUp")
+		return event, nil
+	}
+	log.Println("1")
+	body, err := json.Marshal(&user)
 	if err != nil {
 		log.Println("couldn't marshal user body")
 		return event, err
 	}
+	log.Println("2")
 
-	request, err := http.NewRequest("POST", "https://meta-sound-tools.fly.dev/api/cognito-user", bytes.NewReader(body))
+	request, err := http.NewRequest("POST", "https://meta-sound-tools.fly.dev/api/cognito-user", bytes.NewBuffer(body))
 	if err != nil {
 		log.Println("error creating new request")
 		return event, err
 	}
+	log.Println("3")
 
 	request.Header.Set("X-API-Key", apiKey)
 	request.Header.Set("Content-Type", "application/json")
 
-	client := http.DefaultClient
+	client := http.Client{Timeout: 6 * time.Second}
 	response, err := client.Do(request)
 	if err != nil {
 		log.Println("error sending HTTP Req")
 		return event, err
 	}
 	defer response.Body.Close()
+	log.Println("4")
 
 	log.Println("Response Status: ", response.Status)
 

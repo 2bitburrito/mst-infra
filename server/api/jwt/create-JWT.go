@@ -6,10 +6,11 @@ import (
 
 	"github.com/2bitburrito/mst-infra/server/api/utils"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type CreateJWTParams struct {
-	UserId     string
+	UserId     uuid.UUID
 	MachineId  *string
 	LicenceKey string
 	Plan       utils.PlanType
