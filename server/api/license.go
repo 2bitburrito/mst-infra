@@ -11,15 +11,15 @@ import (
 )
 
 func (api *API) postLicense(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "Method not yet implemented", http.StatusNotFound)
+	returnJsonError(w, "Method not yet implemented", http.StatusNotFound)
 }
 
 func (api *API) patchLicense(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "Method not yet implemented", http.StatusNotFound)
+	returnJsonError(w, "Method not yet implemented", http.StatusNotFound)
 }
 
 func (api *API) getLicense(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "Method not yet implemented", http.StatusNotFound)
+	returnJsonError(w, "Method not yet implemented", http.StatusNotFound)
 }
 
 type checkLicenceResponse struct {
@@ -37,16 +37,14 @@ func (api *API) checkLicense(w http.ResponseWriter, r *http.Request) {
 	// Validate JWT
 	claims, err := jwt.ValidateJWT(jwtTokenString)
 	if err != nil {
-		log.Printf("jwt invalid %v", err.Error())
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		returnJsonError(w, "jwt invalid", http.StatusUnauthorized)
 		return
 	}
 
 	// Get licence from db
 	dbLicence, err = api.queries.GetLicence(api.ctx, claims.LicenceKey)
 	if err != nil {
-		log.Printf("error getting licence from db in checkLoginCode %v", err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		returnJsonError(w, "error getting licence from db in checkLoginCode: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 	log.Printf("Retrieved licence for userid:%s / licenceKey:%s", dbLicence.UserID, dbLicence.LicenceKey)
@@ -64,8 +62,7 @@ func (api *API) checkLicense(w http.ResponseWriter, r *http.Request) {
 		// If db doesn't have machineID then instert:
 		err := api.queries.ChangeMachineID(api.ctx, params)
 		if err != nil {
-			log.Printf("error adding the machine id to db %v", err.Error())
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			returnJsonError(w, "error adding the machine id to db: "+err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -73,8 +70,7 @@ func (api *API) checkLicense(w http.ResponseWriter, r *http.Request) {
 		log.Println("Machine Id doesn't match db - force logout!")
 		err := api.queries.RemoveMachineID(api.ctx, claims.LicenceKey)
 		if err != nil {
-			log.Printf("error adding the machine id to db %v", err.Error())
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			returnJsonError(w, "error adding the machine id to db: "+err.Error(), http.StatusBadRequest)
 			return
 		}
 		w.WriteHeader(http.StatusUnauthorized)
@@ -84,8 +80,7 @@ func (api *API) checkLicense(w http.ResponseWriter, r *http.Request) {
 		}
 		dat, err := json.Marshal(responseBody)
 		if err != nil {
-			log.Printf("error marshalling json %v", err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			returnJsonError(w, "error marshalling json"+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.Write(dat)
@@ -98,8 +93,7 @@ func (api *API) checkLicense(w http.ResponseWriter, r *http.Request) {
 	}
 	dat, err := json.Marshal(responseBody)
 	if err != nil {
-		log.Printf("Error marshalling JSON response: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		returnJsonError(w, "Error marshalling JSON response: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 	w.Write(dat)

@@ -5,6 +5,7 @@ type License struct {
 	MachineId   *string  `json:"machine_id"`
 	LicenseType PlanType `json:"license_type"`
 	LicenseKey  string   `json:"license_key"`
+	Expiry      *int64   `json:"expiry"`
 }
 type JWT struct {
 	Iss        string `json:"iss"`
@@ -22,3 +23,9 @@ const (
 	PlanTrial PlanType = "trial"
 	PlanBeta  PlanType = "beta"
 )
+
+type JsonReturn struct {
+	Success bool
+	Error   string
+	Value   *map[string]string
+}

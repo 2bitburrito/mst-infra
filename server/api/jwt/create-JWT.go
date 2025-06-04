@@ -2,6 +2,7 @@ package jwt
 
 import (
 	"crypto/ecdsa"
+	"database/sql"
 	"log"
 
 	"github.com/2bitburrito/mst-infra/server/api/utils"
@@ -14,7 +15,7 @@ type CreateJWTParams struct {
 	MachineId  *string
 	LicenceKey string
 	Plan       utils.PlanType
-	Expiry     int64
+	Expiry     sql.NullTime
 }
 
 func CreateJWT(params CreateJWTParams) (string, error) {

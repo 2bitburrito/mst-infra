@@ -39,11 +39,11 @@ func (api *API) getUser(w http.ResponseWriter, r *http.Request) {
 
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		returnJsonError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if err := json.Unmarshal(data, &request); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		returnJsonError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	id := request.Id
@@ -51,36 +51,33 @@ func (api *API) getUser(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received user ID:", id)
 
 	if len(id) < 1 {
-		http.Error(w, "invalid id", http.StatusBadRequest)
+		returnJsonError(w, "Invalid id: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	query := "SELECT email, has_license, number_of_licenses, id FROM users WHERE id=$1"
 	if err := api.db.QueryRow(query, id).Scan(&user.Email, &user.HasLicense, &user.NumberOfLicenses, &user.Id); err != nil {
 		if err == sql.ErrNoRows {
-			log.Printf("error no rows matching. %v", err)
-			http.Error(w, "user id not found", http.StatusNotFound)
+			returnJsonError(w, "user id not found: "+err.Error(), http.StatusNotFound)
 			return
 		}
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		log.Printf("error in select statement: %v", err)
+		returnJsonError(w, "error in sql statement: "+err.Error(), http.StatusNotFound)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(user); err != nil {
-		log.Printf("error in select statement: %v", err)
-		http.Error(w, "failed to encode user data to json", http.StatusInternalServerError)
+		returnJsonError(w, "failed to encode user data to json: "+err.Error(), http.StatusNotFound)
 		return
 	}
 }
 
 func (api *API) patchUser(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "Method not yet implemented", http.StatusNotFound)
+	returnJsonError(w, "Method not yet implemented", http.StatusNotFound)
 }
 
 func (api *API) postUser(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "Method not yet implemented", http.StatusNotFound)
+	returnJsonError(w, "Method not yet implemented", http.StatusNotFound)
 }
 
 func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
@@ -88,15 +85,13 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Println("error reading body json json", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		returnJsonError(w, "error reading body json: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer r.Body.Close()
 
 	if err := json.Unmarshal(data, &cognitoUser); err != nil {
-		log.Println("error unmarshalling json", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		returnJsonError(w, "error unmarshalling json: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	log.Println("Recieved Cognito Request for:", cognitoUser.Email)
@@ -110,8 +105,7 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, sql.ErrNoRows) {
 			email.Valid = false
 		} else {
-			log.Printf("error in while getting beta email: %v", err)
-			http.Error(w, "error retrieving email from beta list", http.StatusInternalServerError)
+			returnJsonError(w, "error retrieving email from beta list: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
@@ -123,8 +117,7 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 			Email: cognitoUser.Email,
 		})
 		if err != nil {
-			log.Println("error updating user id ", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			returnJsonError(w, "error updating user id "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
@@ -141,13 +134,12 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Println("Inserting user: ", args)
 	if err := api.queries.InsertUser(api.ctx, args); err != nil {
-		log.Printf("error in while writing cognito user to db: %v", err)
-		http.Error(w, "error in while writing cognito user to db", http.StatusInternalServerError)
+		returnJsonError(w, "error in while writing cognito user to db: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
 }
 
 func (api *API) deleteUser(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "Method not yet implemented", http.StatusNotFound)
+	returnJsonError(w, "Method not yet implemented", http.StatusNotFound)
 }

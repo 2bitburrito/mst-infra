@@ -33,8 +33,7 @@ func (api *API) createLoginCode(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
-		log.Printf("error in Jwt Verify %v", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		returnJsonError(w, "Couldn't decode json"+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer r.Body.Close()
@@ -42,8 +41,7 @@ func (api *API) createLoginCode(w http.ResponseWriter, r *http.Request) {
 	// Verify the jwt with cognito
 	verified, err := jwt.VerifyCognitoJWT(cfg.CognitoPoolID, user.Id.String(), user.JWT)
 	if err != nil || !verified {
-		log.Printf("error in Jwt Verify %v", err)
-		http.Error(w, err.Error(), http.StatusNotFound)
+		returnJsonError(w, "error in Jwt Verify "+err.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -55,8 +53,7 @@ func (api *API) createLoginCode(w http.ResponseWriter, r *http.Request) {
 
 	returnData, err := json.Marshal(returnObj)
 	if err != nil {
-		log.Printf("error marshalling otc: %v", err)
-		http.Error(w, err.Error(), http.StatusNotFound)
+		returnJsonError(w, "error marshalling otc: "+err.Error(), http.StatusNotFound)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -69,8 +66,7 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 	var request LoginCodeRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		log.Printf("error decoding json in checkLoginCode %v", err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		returnJsonError(w, "error decoding json in checkLoginCode %v"+err.Error(), http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
@@ -82,8 +78,7 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 		var userId uuid.UUID
 		userId, token, err = api.verificationStore.GetFromOTC(request.OneTimeToken)
 		if err != nil {
-			log.Printf("Error:  %v", err.Error())
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			returnJsonError(w, "error getting otc from store"+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		request.UserID = &userId
@@ -91,8 +86,7 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 		// Get Token from store matching userID:
 		token, err = api.verificationStore.Get(*request.UserID)
 		if err != nil {
-			log.Printf("Error:  %v", err.Error())
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			returnJsonError(w, "error getting otc from store"+err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
@@ -100,8 +94,7 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Retrieved OTC from store: %v", token)
 
 	if token != request.OneTimeToken {
-		log.Printf("Invalid Token. \tReceived: %v \tWant: %v", request.OneTimeToken, token)
-		http.Error(w, "Invalid token received", http.StatusUnauthorized)
+		returnJsonError(w, "Invalid token received", http.StatusUnauthorized)
 		return
 	}
 	log.Printf("Successful OTC Match")
@@ -111,28 +104,27 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 	log.Println("Retrieving Licence")
 
 	if api.db == nil {
-		log.Printf("Error: No pointer to db")
-		http.Error(w, "Couldn't contact DB", http.StatusNotFound)
+		returnJsonError(w, "Couldn't contact DB. DB is nil", http.StatusNotFound)
 		return
 	}
 
-	query := "SELECT licence_type, machine_id, licence_key FROM licences WHERE user_id=$1"
-	if err := api.db.QueryRow(query, request.UserID).Scan(&licence.LicenseType, &licence.MachineId, &licence.LicenseKey); err != nil {
+	var licenceRow database.AddTrialLicenceRow
+	query := "SELECT licence_type, machine_id, licence_key, expiry FROM licences WHERE user_id=$1"
+	if err := api.db.QueryRow(query, *request.UserID).Scan(&licence.LicenseType, &licence.MachineId, &licence.LicenseKey); err != nil {
 		if err == sql.ErrNoRows {
-			// Create a beta licence
-			args := database.AddBetaLicenceParams{
+			// Create a trial licence
+			args := database.AddTrialLicenceParams{
 				UserID:    *request.UserID,
-				MachineID: sql.NullString{String: request.MachineID},
+				MachineID: sql.NullString{String: request.MachineID, Valid: true},
 			}
-			licence.LicenseKey, err = api.queries.AddBetaLicence(api.ctx, args)
+			licenceRow, err = api.queries.AddTrialLicence(api.ctx, args)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				log.Printf("error while adding beta user to table: %v", err)
+				returnJsonError(w, "error while adding trial user to table: "+err.Error(), http.StatusBadRequest)
 				return
 			}
+			licence.LicenseKey = licenceRow.LicenceKey
 		} else {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			log.Printf("error in select statement: %v", err)
+			returnJsonError(w, "error in select statement:"+err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
@@ -146,8 +138,7 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 			WHERE licence_key = $2`,
 			request.MachineID, licence.LicenseKey)
 		if err != nil {
-			log.Printf("error updating machine_id %v", err.Error())
-			http.Error(w, "internal error", http.StatusInternalServerError)
+			returnJsonError(w, "error updating machine_id: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
@@ -158,21 +149,19 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 		MachineId:  licence.MachineId,
 		LicenceKey: licence.LicenseKey,
 		Plan:       licence.LicenseType,
+		Expiry:     licenceRow.Expiry,
 	}
 
 	jwtToken, err := jwt.CreateJWT(params)
 	if err != nil {
-		log.Printf("error encoding jwt %v", err.Error())
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		returnJsonError(w, "internal error"+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	data := map[string]string{"jwt": jwtToken}
 	err = json.NewEncoder(w).Encode(data)
 	if err != nil {
-		log.Printf("error encoding json %v", err.Error())
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		returnJsonError(w, "internal error encoding json "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	fmt.Println("JWT issued to :", *request.UserID)

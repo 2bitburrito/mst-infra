@@ -12,22 +12,27 @@ import (
 	"github.com/google/uuid"
 )
 
-const addBetaLicence = `-- name: AddBetaLicence :one
+const addTrialLicence = `-- name: AddTrialLicence :one
 INSERT INTO licences (user_id, machine_id, licence_type, expiry)
-VALUES ($1, $2, "beta", NOW() + INTERVAL '14 days')
-RETURNING licence_key
+VALUES ($1, $2, 'trial', NOW() + INTERVAL '14 days')
+RETURNING licence_key, expiry
 `
 
-type AddBetaLicenceParams struct {
+type AddTrialLicenceParams struct {
 	UserID    uuid.UUID
 	MachineID sql.NullString
 }
 
-func (q *Queries) AddBetaLicence(ctx context.Context, arg AddBetaLicenceParams) (string, error) {
-	row := q.db.QueryRowContext(ctx, addBetaLicence, arg.UserID, arg.MachineID)
-	var licence_key string
-	err := row.Scan(&licence_key)
-	return licence_key, err
+type AddTrialLicenceRow struct {
+	LicenceKey string
+	Expiry     sql.NullTime
+}
+
+func (q *Queries) AddTrialLicence(ctx context.Context, arg AddTrialLicenceParams) (AddTrialLicenceRow, error) {
+	row := q.db.QueryRowContext(ctx, addTrialLicence, arg.UserID, arg.MachineID)
+	var i AddTrialLicenceRow
+	err := row.Scan(&i.LicenceKey, &i.Expiry)
+	return i, err
 }
 
 const changeMachineID = `-- name: ChangeMachineID :exec
