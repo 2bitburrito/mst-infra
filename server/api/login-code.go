@@ -78,7 +78,7 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 		var userId uuid.UUID
 		userId, token, err = api.verificationStore.GetFromOTC(request.OneTimeToken)
 		if err != nil {
-			returnJsonError(w, "error getting otc from store"+err.Error(), http.StatusInternalServerError)
+			returnJsonError(w, "error getting otc from store: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		request.UserID = &userId
@@ -107,8 +107,8 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 		returnJsonError(w, "Couldn't contact DB. DB is nil", http.StatusNotFound)
 		return
 	}
-
 	var licenceRow database.AddTrialLicenceRow
+	// Get all licences of user:
 	query := "SELECT licence_type, machine_id, licence_key, expiry FROM licences WHERE user_id=$1"
 	if err := api.db.QueryRow(query, *request.UserID).Scan(&licence.LicenseType, &licence.MachineId, &licence.LicenseKey, &licence.Expiry); err != nil {
 		if err == sql.ErrNoRows {

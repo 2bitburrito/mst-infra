@@ -96,11 +96,11 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Println("Recieved Cognito Request for:", cognitoUser.Email)
 
-	nonNullStr := sql.NullString{
+	nonNullEmail := sql.NullString{
 		String: cognitoUser.Email,
 		Valid:  true,
 	}
-	betaLicence, err := api.queries.GetBetaEmail(r.Context(), nonNullStr)
+	betaLicence, err := api.queries.GetBetaEmail(r.Context(), nonNullEmail)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			betaLicence.Email.Valid = false
@@ -118,9 +118,15 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 		SubscribedToEmails: false,
 	}
 
+	log.Println("Inserting user: ", args)
+	if err := api.queries.InsertUser(r.Context(), args); err != nil {
+		log.Println("ERROR NOW: ", err.Error())
+		returnJsonError(w, "error in while writing cognito user to db: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	if betaLicence.Email.Valid {
 		// If user is in beta list:
-		args.HasLicense = true
 		emailNonNull := sql.NullString{
 			Valid:  true,
 			String: args.Email,
@@ -135,12 +141,6 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			returnJsonError(w, "error while setting new beta licence:"+err.Error(), http.StatusInternalServerError)
 		}
-	}
-	log.Println("Inserting user: ", args)
-	if err := api.queries.InsertUser(r.Context(), args); err != nil {
-		log.Println("ERROR NOW: ", err.Error())
-		returnJsonError(w, "error in while writing cognito user to db: "+err.Error(), http.StatusInternalServerError)
-		return
 	}
 	w.WriteHeader(http.StatusOK)
 }
