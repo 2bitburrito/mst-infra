@@ -57,6 +57,7 @@ func (ns NullLicenceTypeEnum) Value() (driver.Value, error) {
 
 type BetaLicence struct {
 	Email sql.NullString
+	Seen  bool
 }
 
 type Licence struct {

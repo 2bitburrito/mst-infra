@@ -12,6 +12,24 @@ import (
 	"github.com/google/uuid"
 )
 
+const addBetaLicence = `-- name: AddBetaLicence :one
+INSERT INTO licences (user_id, licence_type, expiry)
+VALUES ($1, 'beta', NOW() + INTERVAL '60 days')
+RETURNING licence_key, expiry
+`
+
+type AddBetaLicenceRow struct {
+	LicenceKey string
+	Expiry     sql.NullTime
+}
+
+func (q *Queries) AddBetaLicence(ctx context.Context, userID uuid.UUID) (AddBetaLicenceRow, error) {
+	row := q.db.QueryRowContext(ctx, addBetaLicence, userID)
+	var i AddBetaLicenceRow
+	err := row.Scan(&i.LicenceKey, &i.Expiry)
+	return i, err
+}
+
 const addTrialLicence = `-- name: AddTrialLicence :one
 INSERT INTO licences (user_id, machine_id, licence_type, expiry)
 VALUES ($1, $2, 'trial', NOW() + INTERVAL '14 days')
@@ -52,14 +70,15 @@ func (q *Queries) ChangeMachineID(ctx context.Context, arg ChangeMachineIDParams
 }
 
 const getBetaEmail = `-- name: GetBetaEmail :one
-SELECT email FROM beta_licences
+SELECT email, seen FROM beta_licences
 WHERE email = $1
 `
 
-func (q *Queries) GetBetaEmail(ctx context.Context, email sql.NullString) (sql.NullString, error) {
+func (q *Queries) GetBetaEmail(ctx context.Context, email sql.NullString) (BetaLicence, error) {
 	row := q.db.QueryRowContext(ctx, getBetaEmail, email)
-	err := row.Scan(&email)
-	return email, err
+	var i BetaLicence
+	err := row.Scan(&i.Email, &i.Seen)
+	return i, err
 }
 
 const getLicence = `-- name: GetLicence :one
@@ -135,6 +154,17 @@ WHERE licence_key = $1
 
 func (q *Queries) RemoveMachineID(ctx context.Context, licenceKey string) error {
 	_, err := q.db.ExecContext(ctx, removeMachineID, licenceKey)
+	return err
+}
+
+const setBetaRowToSeen = `-- name: SetBetaRowToSeen :exec
+UPDATE beta_licences
+SET seen = true
+WHERE email = $1
+`
+
+func (q *Queries) SetBetaRowToSeen(ctx context.Context, email sql.NullString) error {
+	_, err := q.db.ExecContext(ctx, setBetaRowToSeen, email)
 	return err
 }
 

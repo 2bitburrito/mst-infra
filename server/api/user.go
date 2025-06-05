@@ -51,7 +51,7 @@ func (api *API) getUser(w http.ResponseWriter, r *http.Request) {
 	log.Println("Received user ID:", id)
 
 	if len(id) < 1 {
-		returnJsonError(w, "Invalid id: "+err.Error(), http.StatusBadRequest)
+		returnJsonError(w, "Invalid id: "+id, http.StatusBadRequest)
 		return
 	}
 
@@ -100,29 +100,14 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 		String: cognitoUser.Email,
 		Valid:  true,
 	}
-	email, err := api.queries.GetBetaEmail(api.ctx, nonNullStr)
+	betaLicence, err := api.queries.GetBetaEmail(r.Context(), nonNullStr)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			email.Valid = false
+			betaLicence.Email.Valid = false
 		} else {
 			returnJsonError(w, "error retrieving email from beta list: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-	}
-	if email.Valid {
-		// this means we have a beta licence
-		// So we update the userid correctly
-		err := api.queries.UpdateUserId(api.ctx, database.UpdateUserIdParams{
-			ID:    cognitoUser.Sub,
-			Email: cognitoUser.Email,
-		})
-		if err != nil {
-			returnJsonError(w, "error updating user id "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		log.Println("Updated user ID for Beta User: ", cognitoUser.Email)
-		return
 	}
 
 	args := database.InsertUserParams{
@@ -132,8 +117,28 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 		HasLicense:         false,
 		SubscribedToEmails: false,
 	}
+
+	if betaLicence.Email.Valid {
+		// If user is in beta list:
+		args.HasLicense = true
+		emailNonNull := sql.NullString{
+			Valid:  true,
+			String: args.Email,
+		}
+		err := api.queries.SetBetaRowToSeen(r.Context(), emailNonNull)
+		if err != nil {
+			log.Println("error setting beta row to seen: ", err.Error())
+		}
+
+		// add beta licence:
+		_, err = api.queries.AddBetaLicence(r.Context(), args.ID)
+		if err != nil {
+			returnJsonError(w, "error while setting new beta licence:"+err.Error(), http.StatusInternalServerError)
+		}
+	}
 	log.Println("Inserting user: ", args)
-	if err := api.queries.InsertUser(api.ctx, args); err != nil {
+	if err := api.queries.InsertUser(r.Context(), args); err != nil {
+		log.Println("ERROR NOW: ", err.Error())
 		returnJsonError(w, "error in while writing cognito user to db: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

@@ -76,8 +76,10 @@ func middlewareSetup(next http.Handler) http.Handler {
 
 		// Check API Key:
 		apiKey := r.Header.Get("X-API-Key")
+		log.Println("API Key received:", apiKey)
+		log.Println("API Key in config:", cfg.ApiKey)
 		if apiKey != cfg.ApiKey {
-			returnJsonError(w, "Unauthorixed Api Key"+err.Error(), http.StatusInternalServerError)
+			returnJsonError(w, "Unauthorixed Api Key", http.StatusInternalServerError)
 			return
 		}
 		log.Println("Successful Api Key Match")

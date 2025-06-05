@@ -110,14 +110,19 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 
 	var licenceRow database.AddTrialLicenceRow
 	query := "SELECT licence_type, machine_id, licence_key, expiry FROM licences WHERE user_id=$1"
-	if err := api.db.QueryRow(query, *request.UserID).Scan(&licence.LicenseType, &licence.MachineId, &licence.LicenseKey); err != nil {
+	if err := api.db.QueryRow(query, *request.UserID).Scan(&licence.LicenseType, &licence.MachineId, &licence.LicenseKey, &licence.Expiry); err != nil {
 		if err == sql.ErrNoRows {
 			// Create a trial licence
+			// TODO: Also check whether there are other licences with the same machine ID before issuing a trial
+
 			args := database.AddTrialLicenceParams{
-				UserID:    *request.UserID,
-				MachineID: sql.NullString{String: request.MachineID, Valid: true},
+				UserID: *request.UserID,
+				MachineID: sql.NullString{
+					String: request.MachineID,
+					Valid:  true,
+				},
 			}
-			licenceRow, err = api.queries.AddTrialLicence(api.ctx, args)
+			licenceRow, err = api.queries.AddTrialLicence(r.Context(), args)
 			if err != nil {
 				returnJsonError(w, "error while adding trial user to table: "+err.Error(), http.StatusBadRequest)
 				return

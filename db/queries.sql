@@ -35,3 +35,13 @@ INSERT INTO licences (user_id, machine_id, licence_type, expiry)
 VALUES ($1, $2, 'trial', NOW() + INTERVAL '14 days')
 RETURNING licence_key, expiry;
 
+
+-- name: AddBetaLicence :one
+INSERT INTO licences (user_id, licence_type, expiry)
+VALUES ($1, 'beta', NOW() + INTERVAL '60 days')
+RETURNING licence_key, expiry;
+
+-- name: SetBetaRowToSeen :exec
+UPDATE beta_licences
+SET seen = true
+WHERE email = $1;
