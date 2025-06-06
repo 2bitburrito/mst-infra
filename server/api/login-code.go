@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -60,7 +59,7 @@ func (api *API) createLoginCode(w http.ResponseWriter, r *http.Request) {
 	w.Write(returnData)
 }
 
-func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
+func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Request) {
 	log.Println("Checking Login Code")
 
 	var request LoginCodeRequest
@@ -99,68 +98,104 @@ func (api *API) checkLoginCode(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("Successful OTC Match")
 
-	// Get Licence details
-	var licence utils.License
 	log.Println("Retrieving Licence")
 
-	if api.db == nil {
-		returnJsonError(w, "Couldn't contact DB. DB is nil", http.StatusNotFound)
+	// Get all licences of user:
+	licences, err := api.queries.GetAllLicencesFromUserID(r.Context(), *request.UserID)
+	if err != nil {
+		returnJsonError(w, "error in select statement: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	var licenceRow database.AddTrialLicenceRow
-	// Get all licences of user:
-	query := "SELECT licence_type, machine_id, licence_key, expiry FROM licences WHERE user_id=$1"
-	if err := api.db.QueryRow(query, *request.UserID).Scan(&licence.LicenseType, &licence.MachineId, &licence.LicenseKey, &licence.Expiry); err != nil {
-		if err == sql.ErrNoRows {
-			// Create a trial licence
-			// TODO: Also check whether there are other licences with the same machine ID before issuing a trial
 
-			args := database.AddTrialLicenceParams{
-				UserID: *request.UserID,
-				MachineID: sql.NullString{
-					String: request.MachineID,
-					Valid:  true,
+	var newLicence database.Licence
+	var oldestLicence database.Licence
+
+	for _, licence := range licences {
+		// First check whether licence is a plan or within expiry
+		if !utils.LicenceIsValid(licence) {
+			continue
+		}
+		// Track the oldest licence:
+		if !oldestLicence.LastUsedAt.Valid {
+			oldestLicence = licence
+		}
+		if oldestLicence.LastUsedAt.Time.After(licence.LastUsedAt.Time) {
+			oldestLicence = licence
+		}
+		// If licence doesn't have a machine ID attached then attach it
+		if !licence.MachineID.Valid {
+			newLicence = licence
+			newLicence.MachineID.String = request.MachineID
+			err := api.queries.ChangeMachineIDAndJTI(r.Context(), database.ChangeMachineIDAndJTIParams{
+				LicenceKey: newLicence.LicenceKey,
+				MachineID:  newLicence.MachineID,
+				Jti: uuid.NullUUID{
+					Valid: false,
 				},
-			}
-			licenceRow, err = api.queries.AddTrialLicence(r.Context(), args)
+			})
 			if err != nil {
-				returnJsonError(w, "error while adding trial user to table: "+err.Error(), http.StatusBadRequest)
+				returnJsonError(w, "error inserting new machine ID"+err.Error(), http.StatusInternalServerError)
 				return
 			}
-			licence.LicenseKey = licenceRow.LicenceKey
-		} else {
-			returnJsonError(w, "error in select statement:"+err.Error(), http.StatusInternalServerError)
-			return
+			break
+		} else if licence.MachineID.String == request.MachineID {
+			newLicence = licence
+			break
 		}
 	}
 
-	// If machine id is new or nil update it
-	if licence.MachineId == nil || *licence.MachineId != request.MachineID {
-		// *licence.MachineId = request.MachineID
-		_, err = api.db.Exec(`
-			UPDATE licences
-			SET machine_id = $1
-			WHERE licence_key = $2`,
-			request.MachineID, licence.LicenseKey)
+	if newLicence.UserID == uuid.Nil {
+		// Defaulting back to oldest available licence
+		newLicence = oldestLicence
+		log.Printf("Reassigning license %s from machine %s to %s for user %s",
+			oldestLicence.LicenceKey, oldestLicence.MachineID.String, request.MachineID, request.UserID.String())
+
+		err := api.queries.ChangeMachineIDAndJTI(r.Context(), database.ChangeMachineIDAndJTIParams{
+			LicenceKey: newLicence.LicenceKey,
+			MachineID:  newLicence.MachineID,
+			Jti: uuid.NullUUID{
+				Valid: false,
+			},
+		})
 		if err != nil {
-			returnJsonError(w, "error updating machine_id: "+err.Error(), http.StatusInternalServerError)
+			returnJsonError(w, "error updating machine ID for reassigned license"+err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
 
+	if len(newLicence.UserID) == 0 {
+		returnJsonError(w, "No valid Licences Found", http.StatusUnauthorized)
+		return
+	}
+
+	expiry := newLicence.Expiry.Time.Unix()
+	jti := uuid.NullUUID{
+		Valid: true,
+		UUID:  uuid.New(),
+	}
 	// Create JWT
-	params := jwt.CreateJWTParams{
-		UserId:     *request.UserID,
-		MachineId:  licence.MachineId,
-		LicenceKey: licence.LicenseKey,
-		Plan:       licence.LicenseType,
-		Expiry:     licenceRow.Expiry,
+	params := jwt.Claims{
+		UserID:     *request.UserID,
+		MachineID:  newLicence.MachineID.String,
+		LicenceKey: newLicence.LicenceKey,
+		Plan:       utils.PlanType(newLicence.LicenceType.LicenceTypeEnum),
+		Expiry:     expiry,
+		JTI:        jti.UUID,
 	}
 
 	jwtToken, err := jwt.CreateJWT(params)
 	if err != nil {
 		returnJsonError(w, "internal error"+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Insert JTI into licence row
+	err = api.queries.ChangeJTI(r.Context(), database.ChangeJTIParams{
+		Jti:        jti,
+		LicenceKey: newLicence.LicenceKey,
+	})
+	if err != nil {
+		returnJsonError(w, "error inserting JTI into row"+err.Error(), http.StatusInternalServerError)
 	}
 
 	data := map[string]string{"jwt": jwtToken}

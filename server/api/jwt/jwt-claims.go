@@ -3,15 +3,20 @@ package jwt
 import (
 	"encoding/json"
 
+	"github.com/2bitburrito/mst-infra/server/api/utils"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type Claims struct {
-	UserID     string `json:"sub"`
-	MachineID  string `json:"machine"`
-	Plan       string `json:"plan"`
-	LicenceKey string `json:"licenceKey"`
-	Expiry     int64  `json:"exp"`
+	Issuer     string         `json:"iss,omitempty"`
+	IssuedAt   int64          `json:"iat"`
+	Expiry     int64          `json:"exp"`
+	JTI        uuid.UUID      `json:"jti,omitempty"`
+	UserID     uuid.UUID      `json:"sub"`
+	MachineID  string         `json:"machine"`
+	Plan       utils.PlanType `json:"plan"`
+	LicenceKey string         `json:"licenceKey"`
 }
 
 func mapClaimsToStruct(claims jwt.MapClaims) (*Claims, error) {

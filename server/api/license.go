@@ -8,6 +8,7 @@ import (
 
 	queries "github.com/2bitburrito/mst-infra/db/sqlc"
 	"github.com/2bitburrito/mst-infra/server/api/jwt"
+	"github.com/google/uuid"
 )
 
 func (api *API) postLicense(w http.ResponseWriter, r *http.Request) {
@@ -49,31 +50,27 @@ func (api *API) checkLicense(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("Retrieved licence for userid:%s / licenceKey:%s", dbLicence.UserID, dbLicence.LicenceKey)
 
-	params := queries.ChangeMachineIDParams{
-		LicenceKey: dbLicence.LicenceKey,
-		MachineID: sql.NullString{
-			String: claims.MachineID,
-			Valid:  true,
-		},
-	}
-
-	if !dbLicence.MachineID.Valid {
+	// If db doesn't have jit then insert it and the JIT:
+	if !dbLicence.Jti.Valid {
 		log.Println("Machine Id isn't set - setting in DB")
-		// If db doesn't have machineID then instert:
-		err := api.queries.ChangeMachineID(r.Context(), params)
+		err := api.queries.ChangeMachineIDAndJTI(r.Context(), queries.ChangeMachineIDAndJTIParams{
+			LicenceKey: dbLicence.LicenceKey,
+			MachineID: sql.NullString{
+				String: claims.MachineID,
+				Valid:  true,
+			},
+			Jti: uuid.NullUUID{
+				UUID:  claims.JTI,
+				Valid: true,
+			},
+		})
 		if err != nil {
 			returnJsonError(w, "error adding the machine id to db: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-
-	} else if claims.MachineID != dbLicence.MachineID.String {
-		// Licence is using a new machine
-		log.Println("Machine Id doesn't match db - force logout!")
-		err := api.queries.RemoveMachineID(r.Context(), claims.LicenceKey)
-		if err != nil {
-			returnJsonError(w, "error adding the machine id to db: "+err.Error(), http.StatusBadRequest)
-			return
-		}
+		// Check the jti from the request matches the db
+	} else if claims.JTI != dbLicence.Jti.UUID {
+		// if they don't match we log user out
 		w.WriteHeader(http.StatusUnauthorized)
 		responseBody := checkLicenceResponse{
 			Message: "Machine ID doesn't match stored ID in database - Force logout",
@@ -85,6 +82,8 @@ func (api *API) checkLicense(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.Write(dat)
+		// We don't remove the old jwt as it's created and inserted on log in
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)

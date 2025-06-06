@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-func LoadPrivateKey() (*ecdsa.PrivateKey, error) {
+var LoadPrivateKey = func() (*ecdsa.PrivateKey, error) {
 	privateKeyPath := "private.pem"
 	pemData, err := os.ReadFile(privateKeyPath)
 	if err != nil {

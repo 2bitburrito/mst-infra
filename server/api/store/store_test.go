@@ -1,19 +1,27 @@
-package tests
+package store
 
 import (
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/2bitburrito/mst-infra/server/api/store"
+	"github.com/google/uuid"
 )
 
+var tests = map[string]uuid.UUID{
+	"1": uuid.New(),
+	"2": uuid.New(),
+	"3": uuid.New(),
+	"4": uuid.New(),
+}
+
+// TODO: RUN THESE!!!
 func TestVerificationStore_NewDelete(t *testing.T) {
-	store := store.CreateVerificationStore(1*time.Second, 3*time.Second)
-	store.New("1")
-	store.New("2")
-	store.New("3")
-	store.Delete("2")
+	store := CreateVerificationStore(1*time.Second, 3*time.Second)
+	store.New(tests["1"])
+	store.New(tests["2"])
+	store.New(tests["3"])
+	store.Delete(tests["2"])
 	want := 2
 	result := len(store.Map)
 	fmt.Printf("Current Store has %v items\n", result)
@@ -23,19 +31,19 @@ func TestVerificationStore_NewDelete(t *testing.T) {
 }
 
 func TestVerificationStore_Expire(t *testing.T) {
-	store := store.CreateVerificationStore(1*time.Second, 5*time.Second)
-	store.New("1")
-	store.New("2")
+	store := CreateVerificationStore(1*time.Second, 5*time.Second)
+	store.New(tests["1"])
+	store.New(tests["2"])
 	time.Sleep(1 * time.Second)
-	store.New("3")
+	store.New(tests["3"])
 	tests := []struct {
 		description string
-		id          string
+		id          uuid.UUID
 		want        bool
 	}{
-		{"1 Should be Expired", "1", false},
-		{"2 Should be Expired", "2", false},
-		{"3 Should be Valid", "3", true},
+		{"1 Should be Expired", tests["1"], false},
+		{"2 Should be Expired", tests["2"], false},
+		{"3 Should be Valid", tests["3"], true},
 	}
 	for _, test := range tests {
 		t.Run(test.description, func(t *testing.T) {
@@ -53,19 +61,19 @@ func TestVerificationStore_Expire(t *testing.T) {
 }
 
 func TestVerificationStore_Reap(t *testing.T) {
-	store := store.CreateVerificationStore(60*time.Second, 2*time.Second)
-	store.New("1")
+	store := CreateVerificationStore(60*time.Second, 2*time.Second)
+	store.New(tests["1"])
 	time.Sleep(2 * time.Second)
-	store.New("2")
-	store.New("3")
+	store.New(tests["2"])
+	store.New(tests["3"])
 	tests := []struct {
 		description string
-		id          string
+		id          uuid.UUID
 		want        bool
 	}{
-		{"1 Should be Vaid", "1", true},
-		{"2 Should be Expired", "2", false},
-		{"3 Should be Expired", "3", false},
+		{"1 Should be Vaid", tests["1"], true},
+		{"2 Should be Expired", tests["2"], false},
+		{"3 Should be Expired", tests["3"], false},
 	}
 
 	for _, test := range tests {

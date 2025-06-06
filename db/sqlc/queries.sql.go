@@ -53,20 +53,74 @@ func (q *Queries) AddTrialLicence(ctx context.Context, arg AddTrialLicenceParams
 	return i, err
 }
 
-const changeMachineID = `-- name: ChangeMachineID :exec
+const changeJTI = `-- name: ChangeJTI :exec
 UPDATE licences
-SET machine_id = $2
+SET jti = $1
+WHERE licence_key = $2
+`
+
+type ChangeJTIParams struct {
+	Jti        uuid.NullUUID
+	LicenceKey string
+}
+
+func (q *Queries) ChangeJTI(ctx context.Context, arg ChangeJTIParams) error {
+	_, err := q.db.ExecContext(ctx, changeJTI, arg.Jti, arg.LicenceKey)
+	return err
+}
+
+const changeMachineIDAndJTI = `-- name: ChangeMachineIDAndJTI :exec
+UPDATE licences
+SET machine_id = $2, jti = $3
 WHERE licence_key = $1
 `
 
-type ChangeMachineIDParams struct {
+type ChangeMachineIDAndJTIParams struct {
 	LicenceKey string
 	MachineID  sql.NullString
+	Jti        uuid.NullUUID
 }
 
-func (q *Queries) ChangeMachineID(ctx context.Context, arg ChangeMachineIDParams) error {
-	_, err := q.db.ExecContext(ctx, changeMachineID, arg.LicenceKey, arg.MachineID)
+func (q *Queries) ChangeMachineIDAndJTI(ctx context.Context, arg ChangeMachineIDAndJTIParams) error {
+	_, err := q.db.ExecContext(ctx, changeMachineIDAndJTI, arg.LicenceKey, arg.MachineID, arg.Jti)
 	return err
+}
+
+const getAllLicencesFromUserID = `-- name: GetAllLicencesFromUserID :many
+SELECT licence_key, user_id, machine_id, created_at, last_used_at, licence_type, expiry, jti FROM licences
+WHERE user_id = $1
+`
+
+func (q *Queries) GetAllLicencesFromUserID(ctx context.Context, userID uuid.UUID) ([]Licence, error) {
+	rows, err := q.db.QueryContext(ctx, getAllLicencesFromUserID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Licence
+	for rows.Next() {
+		var i Licence
+		if err := rows.Scan(
+			&i.LicenceKey,
+			&i.UserID,
+			&i.MachineID,
+			&i.CreatedAt,
+			&i.LastUsedAt,
+			&i.LicenceType,
+			&i.Expiry,
+			&i.Jti,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getBetaEmail = `-- name: GetBetaEmail :one
@@ -82,8 +136,8 @@ func (q *Queries) GetBetaEmail(ctx context.Context, email sql.NullString) (BetaL
 }
 
 const getLicence = `-- name: GetLicence :one
-SELECT licence_key, user_id, machine_id, created_at, last_used_at, licence_type, expiry FROM licences
-where licence_key = $1 LIMIT 1
+SELECT licence_key, user_id, machine_id, created_at, last_used_at, licence_type, expiry, jti FROM licences
+WHERE licence_key = $1 LIMIT 1
 `
 
 func (q *Queries) GetLicence(ctx context.Context, licenceKey string) (Licence, error) {
@@ -97,6 +151,7 @@ func (q *Queries) GetLicence(ctx context.Context, licenceKey string) (Licence, e
 		&i.LastUsedAt,
 		&i.LicenceType,
 		&i.Expiry,
+		&i.Jti,
 	)
 	return i, err
 }

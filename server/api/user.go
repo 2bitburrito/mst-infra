@@ -81,6 +81,7 @@ func (api *API) postUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
+	// When user is created in cognito we either assign them to a trial licence or Beta licence
 	var cognitoUser CognitoUser
 
 	data, err := io.ReadAll(r.Body)
@@ -120,7 +121,7 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("Inserting user: ", args)
 	if err := api.queries.InsertUser(r.Context(), args); err != nil {
-		log.Println("ERROR NOW: ", err.Error())
+		log.Println("ERROR: ", err.Error())
 		returnJsonError(w, "error in while writing cognito user to db: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -141,6 +142,19 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			returnJsonError(w, "error while setting new beta licence:"+err.Error(), http.StatusInternalServerError)
 		}
+	} else {
+		licenceRowArgs := database.AddTrialLicenceParams{
+			UserID: cognitoUser.Sub,
+			MachineID: sql.NullString{
+				Valid: false,
+			},
+		}
+		licenceRow, err := api.queries.AddTrialLicence(r.Context(), licenceRowArgs)
+		if err != nil {
+			returnJsonError(w, "error while adding trial user to table: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		log.Println("Added new Trial Licence: ", licenceRow)
 	}
 	w.WriteHeader(http.StatusOK)
 }

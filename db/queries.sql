@@ -4,11 +4,20 @@ WHERE id = $1 LIMIT 1;
 
 -- name: GetLicence :one
 SELECT * FROM licences
-where licence_key = $1 LIMIT 1;
+WHERE licence_key = $1 LIMIT 1;
 
--- name: ChangeMachineID :exec
+-- name: GetAllLicencesFromUserID :many
+SELECT * FROM licences
+WHERE user_id = $1;
+
+-- name: ChangeJTI :exec
 UPDATE licences
-SET machine_id = $2
+SET jti = $1
+WHERE licence_key = $2;
+
+-- name: ChangeMachineIDAndJTI :exec
+UPDATE licences
+SET machine_id = $2, jti = $3
 WHERE licence_key = $1;
 
 -- name: RemoveMachineID :exec
@@ -34,7 +43,6 @@ WHERE email = $1;
 INSERT INTO licences (user_id, machine_id, licence_type, expiry)
 VALUES ($1, $2, 'trial', NOW() + INTERVAL '14 days')
 RETURNING licence_key, expiry;
-
 
 -- name: AddBetaLicence :one
 INSERT INTO licences (user_id, licence_type, expiry)

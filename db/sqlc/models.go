@@ -68,6 +68,7 @@ type Licence struct {
 	LastUsedAt  sql.NullTime
 	LicenceType NullLicenceTypeEnum
 	Expiry      sql.NullTime
+	Jti         uuid.NullUUID
 }
 
 type User struct {

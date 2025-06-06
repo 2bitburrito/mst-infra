@@ -2,23 +2,15 @@ package jwt
 
 import (
 	"crypto/ecdsa"
-	"database/sql"
 	"log"
+	"time"
 
 	"github.com/2bitburrito/mst-infra/server/api/utils"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
-type CreateJWTParams struct {
-	UserId     uuid.UUID
-	MachineId  *string
-	LicenceKey string
-	Plan       utils.PlanType
-	Expiry     sql.NullTime
-}
-
-func CreateJWT(params CreateJWTParams) (string, error) {
+func CreateJWT(params Claims) (string, error) {
 	var (
 		key       *ecdsa.PrivateKey
 		token     *jwt.Token
@@ -35,11 +27,13 @@ func CreateJWT(params CreateJWTParams) (string, error) {
 	token = jwt.NewWithClaims(jwt.SigningMethodES256,
 		jwt.MapClaims{
 			"iss":        "Meta-Sound-Tools",
-			"sub":        params.UserId,
-			"machine":    params.MachineId,
+			"sub":        params.UserID,
+			"machine":    params.MachineID,
 			"plan":       params.Plan,
 			"licenceKey": params.LicenceKey,
 			"exp":        params.Expiry,
+			"jti":        uuid.NewString(),
+			"iat":        time.Now().Unix(),
 		})
 
 	jwtString, err = token.SignedString(key)

@@ -40,7 +40,7 @@ func (api *API) setupRouter() *http.ServeMux {
 	router.HandleFunc("POST /api/license/check/", api.checkLicense)
 
 	router.HandleFunc("POST /api/create-login-code", api.createLoginCode)
-	router.HandleFunc("POST /api/check-login-code", api.checkLoginCode)
+	router.HandleFunc("POST /api/check-login-code", api.checkLoginCodeAndCreateJWT)
 
 	return router
 }
