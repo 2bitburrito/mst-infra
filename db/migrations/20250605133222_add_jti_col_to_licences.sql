@@ -7,5 +7,5 @@ ALTER TABLE licences
 -- +goose Down
 -- +goose StatementBegin
 ALTER TABLE licences
-   DROP COLUMN jti UUID;
+   DROP COLUMN jti;
 -- +goose StatementEnd

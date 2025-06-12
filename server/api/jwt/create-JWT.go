@@ -7,7 +7,6 @@ import (
 
 	"github.com/2bitburrito/mst-infra/server/api/utils"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 )
 
 func CreateJWT(params Claims) (string, error) {
@@ -32,7 +31,7 @@ func CreateJWT(params Claims) (string, error) {
 			"plan":       params.Plan,
 			"licenceKey": params.LicenceKey,
 			"exp":        params.Expiry,
-			"jti":        uuid.NewString(),
+			"jti":        params.JTI,
 			"iat":        time.Now().Unix(),
 		})
 

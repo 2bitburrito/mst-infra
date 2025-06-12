@@ -32,15 +32,18 @@ func (api *API) setupRouter() *http.ServeMux {
 	router.HandleFunc("PATCH /api/user/{id}", api.patchUser)
 	router.HandleFunc("GET /api/user/{id}", api.getUser)
 	router.HandleFunc("DELETE /api/user", api.deleteUser)
+	router.HandleFunc("GET /api/user/is-beta/{email}", api.checkUserIsBeta)
 
 	router.HandleFunc("POST /api/license", api.postLicense)
 	router.HandleFunc("PATCH /api/license/{id}", api.patchLicense)
 	router.HandleFunc("GET /api/license/{id}", api.getLicense)
-
 	router.HandleFunc("POST /api/license/check/", api.checkLicense)
 
 	router.HandleFunc("POST /api/create-login-code", api.createLoginCode)
 	router.HandleFunc("POST /api/check-login-code", api.checkLoginCodeAndCreateJWT)
+
+	router.HandleFunc("POST /api/latest-binaries", api.insertLatestBinaries)
+	router.HandleFunc("GET /api/latest-binaries/{platform}/{arch}", api.getLatestBinaries)
 
 	return router
 }
@@ -77,7 +80,6 @@ func middlewareSetup(next http.Handler) http.Handler {
 		// Check API Key:
 		apiKey := r.Header.Get("X-API-Key")
 		log.Println("API Key received:", apiKey)
-		log.Println("API Key in config:", cfg.ApiKey)
 		if apiKey != cfg.ApiKey {
 			returnJsonError(w, "Unauthorixed Api Key", http.StatusInternalServerError)
 			return

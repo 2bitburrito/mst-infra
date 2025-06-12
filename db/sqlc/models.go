@@ -55,6 +55,19 @@ func (ns NullLicenceTypeEnum) Value() (driver.Value, error) {
 	return string(ns.LicenceTypeEnum), nil
 }
 
+type AppRelease struct {
+	ID             uuid.UUID
+	Platform       string
+	Architecture   sql.NullString
+	ReleaseVersion string
+	UrlFilename    string
+	FileSize       sql.NullInt64
+	ReleaseDate    sql.NullTime
+	IsLatest       sql.NullBool
+	ReleaseNotes   sql.NullString
+	CreatedAt      sql.NullTime
+}
+
 type BetaLicence struct {
 	Email sql.NullString
 	Seen  bool

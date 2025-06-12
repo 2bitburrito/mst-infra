@@ -15,7 +15,6 @@ var tests = map[string]uuid.UUID{
 	"4": uuid.New(),
 }
 
-// TODO: RUN THESE!!!
 func TestVerificationStore_NewDelete(t *testing.T) {
 	store := CreateVerificationStore(1*time.Second, 3*time.Second)
 	store.New(tests["1"])

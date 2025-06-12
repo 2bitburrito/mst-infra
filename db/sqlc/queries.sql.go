@@ -30,6 +30,43 @@ func (q *Queries) AddBetaLicence(ctx context.Context, userID uuid.UUID) (AddBeta
 	return i, err
 }
 
+const addNewReleaseData = `-- name: AddNewReleaseData :exec
+INSERT INTO app_releases (
+  platform, 
+  architecture,
+  release_version,
+  url_filename,
+  file_size,
+  release_date,
+  is_latest,
+  release_notes
+  ) 
+VALUES ($1, $2, $3, $4, $5, $6, TRUE, $7)
+`
+
+type AddNewReleaseDataParams struct {
+	Platform       string
+	Architecture   sql.NullString
+	ReleaseVersion string
+	UrlFilename    string
+	FileSize       sql.NullInt64
+	ReleaseDate    sql.NullTime
+	ReleaseNotes   sql.NullString
+}
+
+func (q *Queries) AddNewReleaseData(ctx context.Context, arg AddNewReleaseDataParams) error {
+	_, err := q.db.ExecContext(ctx, addNewReleaseData,
+		arg.Platform,
+		arg.Architecture,
+		arg.ReleaseVersion,
+		arg.UrlFilename,
+		arg.FileSize,
+		arg.ReleaseDate,
+		arg.ReleaseNotes,
+	)
+	return err
+}
+
 const addTrialLicence = `-- name: AddTrialLicence :one
 INSERT INTO licences (user_id, machine_id, licence_type, expiry)
 VALUES ($1, $2, 'trial', NOW() + INTERVAL '14 days')
@@ -135,6 +172,37 @@ func (q *Queries) GetBetaEmail(ctx context.Context, email sql.NullString) (BetaL
 	return i, err
 }
 
+const getLatestBinary = `-- name: GetLatestBinary :one
+SELECT id, platform, architecture, release_version, url_filename, file_size, release_date, is_latest, release_notes, created_at FROM app_releases
+WHERE is_latest = TRUE
+  AND architecture = $1
+  AND platform = $2
+LIMIT 1
+`
+
+type GetLatestBinaryParams struct {
+	Architecture sql.NullString
+	Platform     string
+}
+
+func (q *Queries) GetLatestBinary(ctx context.Context, arg GetLatestBinaryParams) (AppRelease, error) {
+	row := q.db.QueryRowContext(ctx, getLatestBinary, arg.Architecture, arg.Platform)
+	var i AppRelease
+	err := row.Scan(
+		&i.ID,
+		&i.Platform,
+		&i.Architecture,
+		&i.ReleaseVersion,
+		&i.UrlFilename,
+		&i.FileSize,
+		&i.ReleaseDate,
+		&i.IsLatest,
+		&i.ReleaseNotes,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getLicence = `-- name: GetLicence :one
 SELECT licence_key, user_id, machine_id, created_at, last_used_at, licence_type, expiry, jti FROM licences
 WHERE licence_key = $1 LIMIT 1
@@ -220,6 +288,24 @@ WHERE email = $1
 
 func (q *Queries) SetBetaRowToSeen(ctx context.Context, email sql.NullString) error {
 	_, err := q.db.ExecContext(ctx, setBetaRowToSeen, email)
+	return err
+}
+
+const unsetIsLatest = `-- name: UnsetIsLatest :exec
+UPDATE app_releases 
+SET is_latest = FALSE 
+WHERE platform = $1 
+  AND architecture = $2 
+  AND is_latest = TRUE
+`
+
+type UnsetIsLatestParams struct {
+	Platform     string
+	Architecture sql.NullString
+}
+
+func (q *Queries) UnsetIsLatest(ctx context.Context, arg UnsetIsLatestParams) error {
+	_, err := q.db.ExecContext(ctx, unsetIsLatest, arg.Platform, arg.Architecture)
 	return err
 }
 

@@ -101,6 +101,7 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 		String: cognitoUser.Email,
 		Valid:  true,
 	}
+
 	betaLicence, err := api.queries.GetBetaEmail(r.Context(), nonNullEmail)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -143,6 +144,7 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 			returnJsonError(w, "error while setting new beta licence:"+err.Error(), http.StatusInternalServerError)
 		}
 	} else {
+		// Add a trial licence
 		licenceRowArgs := database.AddTrialLicenceParams{
 			UserID: cognitoUser.Sub,
 			MachineID: sql.NullString{
@@ -161,4 +163,23 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 
 func (api *API) deleteUser(w http.ResponseWriter, r *http.Request) {
 	returnJsonError(w, "Method not yet implemented", http.StatusNotFound)
+}
+
+func (api *API) checkUserIsBeta(w http.ResponseWriter, r *http.Request) {
+	email := r.PathValue("email")
+
+	_, err := api.queries.GetBetaEmail(r.Context(), sql.NullString{
+		Valid:  true,
+		String: email,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			returnJsonError(w, "Email not enrolled in Beta Program", http.StatusNotFound)
+			return
+		} else {
+			returnJsonError(w, "Error while fetching user in beta: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	w.WriteHeader(http.StatusOK)
 }

@@ -173,6 +173,7 @@ func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Reques
 		Valid: true,
 		UUID:  uuid.New(),
 	}
+
 	// Create JWT
 	params := jwt.Claims{
 		UserID:     *request.UserID,
@@ -188,6 +189,9 @@ func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Reques
 		returnJsonError(w, "internal error"+err.Error(), http.StatusInternalServerError)
 		return
 	}
+	log.Println("Created New JWT for user: ", params.UserID)
+	jwtJSON, _ := json.MarshalIndent(params, "", "  ")
+	log.Println("Claims:", string(jwtJSON))
 
 	// Insert JTI into licence row
 	err = api.queries.ChangeJTI(r.Context(), database.ChangeJTIParams{
@@ -198,11 +202,13 @@ func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Reques
 		returnJsonError(w, "error inserting JTI into row"+err.Error(), http.StatusInternalServerError)
 	}
 
+	log.Printf("Added jti: %v to db for licence key: %v", jti.UUID, newLicence.LicenceKey)
+
 	data := map[string]string{"jwt": jwtToken}
 	err = json.NewEncoder(w).Encode(data)
 	if err != nil {
 		returnJsonError(w, "internal error encoding json "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	fmt.Println("JWT issued to :", *request.UserID)
+	fmt.Println("JWT issued to userID:", *request.UserID)
 }

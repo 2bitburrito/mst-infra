@@ -53,3 +53,31 @@ RETURNING licence_key, expiry;
 UPDATE beta_licences
 SET seen = true
 WHERE email = $1;
+
+
+-- name: UnsetIsLatest :exec
+UPDATE app_releases 
+SET is_latest = FALSE 
+WHERE platform = $1 
+  AND architecture = $2 
+  AND is_latest = TRUE;
+
+-- name: AddNewReleaseData :exec
+INSERT INTO app_releases (
+  platform, 
+  architecture,
+  release_version,
+  url_filename,
+  file_size,
+  release_date,
+  is_latest,
+  release_notes
+  ) 
+VALUES ($1, $2, $3, $4, $5, $6, TRUE, $7);
+
+-- name: GetLatestBinary :one
+SELECT * FROM app_releases
+WHERE is_latest = TRUE
+  AND architecture = $1
+  AND platform = $2
+LIMIT 1;
