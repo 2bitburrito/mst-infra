@@ -33,10 +33,10 @@ func LoadConfig() (*Config, error) {
 		CognitoPoolID:  os.Getenv("COGNITO_POOL_ID"),
 		ReaperDuration: 10 * time.Minute,
 	}
-	fmt.Printf("Port: %s\n", cfg.Port)
-	fmt.Printf("ApiKey: %s\n", cfg.ApiKey)
-	fmt.Printf("DB URL: %s\n", cfg.DB.URL)
-	fmt.Printf("CognitoPoolID: %s\n", cfg.CognitoPoolID)
+	fmt.Printf("Port: %v\n", len(cfg.Port) != 0)
+	fmt.Printf("ApiKey: %v\n", len(cfg.ApiKey) != 0)
+	fmt.Printf("DB URL: %v\n", len(cfg.DB.URL) != 0)
+	fmt.Printf("CognitoPoolID: %v\n", len(cfg.CognitoPoolID) != 0)
 	fmt.Printf("ReaperDuration: %s\n", cfg.ReaperDuration)
 
 	return cfg, nil

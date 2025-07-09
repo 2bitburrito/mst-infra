@@ -44,7 +44,6 @@ func (s *VerificationStore) New(id uuid.UUID) string {
 func (s *VerificationStore) GetFromOTC(otc string) (uuid.UUID, string, error) {
 	s.M.Lock()
 	defer s.M.Unlock()
-	log.Println("Checking VerificationStore using OTC")
 
 	now := time.Now()
 

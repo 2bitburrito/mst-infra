@@ -1,2 +1,4 @@
 .env
 .terraform/
+private.pem
+public.pem

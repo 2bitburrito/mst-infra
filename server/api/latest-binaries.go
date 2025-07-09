@@ -9,6 +9,7 @@ import (
 	"time"
 
 	database "github.com/2bitburrito/mst-infra/db/sqlc"
+	"github.com/2bitburrito/mst-infra/server/api/utils"
 )
 
 type BinaryInfo struct {
@@ -42,6 +43,7 @@ func (api *API) insertLatestBinaries(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	defer req.Body.Close()
+	utils.PrintPretty(request)
 
 	if len(request.Files) == 0 {
 		returnJsonError(w, "No files provided", http.StatusBadRequest)
@@ -116,5 +118,8 @@ func (api *API) getLatestBinaries(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	log.Println("Successfully retreived Binaries data")
+	log.Println("Latest Version details:")
+	utils.PrintPretty(returnBody)
+
 	w.Write(dat)
 }

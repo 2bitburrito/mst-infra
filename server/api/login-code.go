@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -9,6 +10,7 @@ import (
 	database "github.com/2bitburrito/mst-infra/db/sqlc"
 	"github.com/2bitburrito/mst-infra/server/api/config"
 	"github.com/2bitburrito/mst-infra/server/api/jwt"
+	"github.com/2bitburrito/mst-infra/server/api/licence-check"
 	"github.com/2bitburrito/mst-infra/server/api/utils"
 	"github.com/google/uuid"
 )
@@ -90,15 +92,10 @@ func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	log.Printf("Retrieved OTC from store: %v", token)
-
 	if token != request.OneTimeToken {
 		returnJsonError(w, "Invalid token received", http.StatusUnauthorized)
 		return
 	}
-	log.Printf("Successful OTC Match")
-
-	log.Println("Retrieving Licence")
 
 	// Get all licences of user:
 	licences, err := api.queries.GetAllLicencesFromUserID(r.Context(), *request.UserID)
@@ -106,64 +103,13 @@ func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Reques
 		returnJsonError(w, "error in select statement: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	var newLicence database.Licence
-	var oldestLicence database.Licence
-
-	for _, licence := range licences {
-		// First check whether licence is a plan or within expiry
-		if !utils.LicenceIsValid(licence) {
-			continue
-		}
-		// Track the oldest licence:
-		if !oldestLicence.LastUsedAt.Valid {
-			oldestLicence = licence
-		}
-		if oldestLicence.LastUsedAt.Time.After(licence.LastUsedAt.Time) {
-			oldestLicence = licence
-		}
-		// If licence doesn't have a machine ID attached then attach it
-		if !licence.MachineID.Valid {
-			newLicence = licence
-			newLicence.MachineID.String = request.MachineID
-			err := api.queries.ChangeMachineIDAndJTI(r.Context(), database.ChangeMachineIDAndJTIParams{
-				LicenceKey: newLicence.LicenceKey,
-				MachineID:  newLicence.MachineID,
-				Jti: uuid.NullUUID{
-					Valid: false,
-				},
-			})
-			if err != nil {
-				returnJsonError(w, "error inserting new machine ID"+err.Error(), http.StatusInternalServerError)
-				return
-			}
-			break
-		} else if licence.MachineID.String == request.MachineID {
-			newLicence = licence
-			break
-		}
+	// Pass licence to licence check to get valid licence:
+	newLicence, err := licence.Check(request.MachineID, licences)
+	if err != nil {
+		returnJsonError(w, "Couldn't check licence validity "+err.Error(), http.StatusInternalServerError)
+		return
 	}
-
 	if newLicence.UserID == uuid.Nil {
-		// Defaulting back to oldest available licence
-		newLicence = oldestLicence
-		log.Printf("Reassigning license %s from machine %s to %s for user %s",
-			oldestLicence.LicenceKey, oldestLicence.MachineID.String, request.MachineID, request.UserID.String())
-
-		err := api.queries.ChangeMachineIDAndJTI(r.Context(), database.ChangeMachineIDAndJTIParams{
-			LicenceKey: newLicence.LicenceKey,
-			MachineID:  newLicence.MachineID,
-			Jti: uuid.NullUUID{
-				Valid: false,
-			},
-		})
-		if err != nil {
-			returnJsonError(w, "error updating machine ID for reassigned license"+err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	if len(newLicence.UserID) == 0 {
 		returnJsonError(w, "No valid Licences Found", http.StatusUnauthorized)
 		return
 	}
@@ -173,16 +119,27 @@ func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Reques
 		Valid: true,
 		UUID:  uuid.New(),
 	}
+	err = api.queries.ChangeMachineIDAndJTI(r.Context(), database.ChangeMachineIDAndJTIParams{
+		LicenceKey: newLicence.LicenceKey,
+		MachineID:  sql.NullString{Valid: true, String: request.MachineID},
+		Jti:        jti,
+	})
+	if err != nil {
+		returnJsonError(w, "error inserting new machine ID"+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	// Create JWT
 	params := jwt.Claims{
 		UserID:     *request.UserID,
-		MachineID:  newLicence.MachineID.String,
+		MachineID:  request.MachineID,
 		LicenceKey: newLicence.LicenceKey,
 		Plan:       utils.PlanType(newLicence.LicenceType.LicenceTypeEnum),
 		Expiry:     expiry,
 		JTI:        jti.UUID,
 	}
+	log.Println("NEW JWT PARAMS:")
+	utils.PrintPretty(params)
 
 	jwtToken, err := jwt.CreateJWT(params)
 	if err != nil {
