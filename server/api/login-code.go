@@ -10,7 +10,7 @@ import (
 	database "github.com/2bitburrito/mst-infra/db/sqlc"
 	"github.com/2bitburrito/mst-infra/server/api/config"
 	"github.com/2bitburrito/mst-infra/server/api/jwt"
-	"github.com/2bitburrito/mst-infra/server/api/licence-check"
+	"github.com/2bitburrito/mst-infra/server/api/licence"
 	"github.com/2bitburrito/mst-infra/server/api/utils"
 	"github.com/google/uuid"
 )

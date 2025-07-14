@@ -20,6 +20,7 @@ type API struct {
 	ctx               context.Context
 	queries           Queries.Queries
 	verificationStore *store.VerificationStore
+	config            config.Config
 }
 
 func (api *API) setupRouter() *http.ServeMux {
@@ -33,6 +34,8 @@ func (api *API) setupRouter() *http.ServeMux {
 	router.HandleFunc("GET /api/user/{id}", api.getUser)
 	router.HandleFunc("DELETE /api/user", api.deleteUser)
 	router.HandleFunc("GET /api/user/is-beta/{email}", api.checkUserIsBeta)
+
+	router.HandleFunc("PUT /api/email-beta-users", api.emailBetaUsers)
 
 	router.HandleFunc("POST /api/license", api.postLicense)
 	router.HandleFunc("PATCH /api/license/{id}", api.patchLicense)
@@ -116,6 +119,7 @@ func main() {
 		ctx:               context.TODO(),
 		queries:           *queries,
 		verificationStore: verificationStore,
+		config:            *cfg,
 	}
 	if api.db == nil {
 		panic("DB IS NIL")
