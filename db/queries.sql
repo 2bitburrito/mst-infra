@@ -2,6 +2,10 @@
 SELECT * FROM users
 WHERE id = $1 LIMIT 1;
 
+-- name: GetUserFromEmail :one
+SELECT * FROM users
+WHERE email = $1 LIMIT 1;
+
 -- name: GetLicence :one
 SELECT * FROM licences
 WHERE licence_key = $1 LIMIT 1;

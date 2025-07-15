@@ -244,6 +244,26 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 	return i, err
 }
 
+const getUserFromEmail = `-- name: GetUserFromEmail :one
+SELECT email, has_license, created_at, number_of_licenses, subscribed_to_emails, full_name, id FROM users
+WHERE email = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserFromEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserFromEmail, email)
+	var i User
+	err := row.Scan(
+		&i.Email,
+		&i.HasLicense,
+		&i.CreatedAt,
+		&i.NumberOfLicenses,
+		&i.SubscribedToEmails,
+		&i.FullName,
+		&i.ID,
+	)
+	return i, err
+}
+
 const insertUser = `-- name: InsertUser :exec
 INSERT INTO users (id, email, full_name, has_license, subscribed_to_emails) 
 VALUES ($1, $2, $3, $4, $5)
