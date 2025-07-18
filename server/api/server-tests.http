@@ -1,4 +1,0 @@
-
-GET http://localhost:2000/api/check-health
-
-GET http://localhost:2000/api/user

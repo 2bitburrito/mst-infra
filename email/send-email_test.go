@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/2bitburrito/mst-infra/emails/html"
-	"github.com/2bitburrito/mst-infra/server/api/utils"
+	"github.com/2bitburrito/mst-infra/email/html"
+	"github.com/2bitburrito/mst-infra/utils"
 	"github.com/aws/aws-sdk-go-v2/config"
 )
 

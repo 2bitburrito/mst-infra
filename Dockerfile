@@ -9,10 +9,11 @@ COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 COPY . .
 
-COPY ./server/api/private.pem ./private.pem
-COPY ./server/api/public.pem ./public.pem
+COPY ./private.pem ./private.pem
+COPY ./public.pem ./public.pem
+COPY ./email ./email
 
-WORKDIR /usr/src/app/server/api
+WORKDIR /usr/src/app
 RUN go build -v -o /run-app .
 
 FROM debian:bookworm

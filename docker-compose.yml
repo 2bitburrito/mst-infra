@@ -1,18 +1,4 @@
 services:
-  backend:
-    build:
-      context: ./server/api
-      dockerfile: Dockerfile
-    container_name: mst-backend
-    ports:
-      - 2000:2000
-    depends_on:
-      - db
-    environment:
-      DB_HOST: db
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PWD}
-      DB_NAME: mst_db
   db:
     image: postgres
     container_name: mst_db
@@ -24,8 +10,34 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init:/docker-entrypoint-initdb.d
-    restart: unless-stopped
+    networks:
+      - appnet
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      # This is go modules cache, without it you will have to
+      # re-download all dependencies after restarting container
+      - /go/pkg/mod/cache
+      - ./:/code:cached
+    environment:
+      ENV: dev
+      API_KEY: ${API_KEY}
+      COGNITO_POOL_ID: ${COGNITO_POOL_ID}
+      DEV_DB_URL: ${DEV_DB_URL}
+      PORT: 8080
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    networks:
+      - appnet
 
 volumes:
   postgres_data:
+
+networks:
+  appnet:
