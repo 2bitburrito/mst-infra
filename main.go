@@ -24,7 +24,7 @@ type API struct {
 func (api *API) setupRouter() *http.ServeMux {
 	router := http.NewServeMux()
 
-	router.HandleFunc("/api/healthz/", api.checkHealth)
+	router.HandleFunc("/healthz/", api.checkHealth)
 
 	router.HandleFunc("POST /api/user", api.postUser)
 	router.HandleFunc("POST /api/cognito-user", api.postCognitoUser)
@@ -58,8 +58,8 @@ func (api *API) checkHealth(w http.ResponseWriter, req *http.Request) {
 
 func (api *API) middlewareSetup(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Println(r.URL.Path)
-		if r.URL.Path == "/api/healthz/" {
+		if r.URL.Path == "/healthz/" ||
+			r.URL.Path == "/healthz" {
 			log.Printf("Running Health Check From: %s", r.RemoteAddr)
 			next.ServeHTTP(w, r)
 			return

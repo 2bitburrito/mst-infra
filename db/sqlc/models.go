@@ -71,6 +71,7 @@ type AppRelease struct {
 type BetaLicence struct {
 	Email sql.NullString
 	Seen  bool
+	Name  sql.NullString
 }
 
 type Licence struct {

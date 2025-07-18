@@ -17,6 +17,10 @@
       -ms-text-size-adjust: 100%;
     }
 
+    body {
+      background-color: #0a0b1e;
+    }
+
     table,
     td {
       mso-table-lspace: 0pt;
@@ -92,8 +96,12 @@
       line-height: 1.6;
     }
 
+    #closing-message {
+      font-size: 9px;
+    }
+
     .lead-text {
-      font-size: 18px;
+      font-size: 14px;
       color: #d1d5db;
       line-height: 1.7;
     }
@@ -153,7 +161,6 @@
       margin: 0;
       line-height: 1.6;
     }
-
 
     /* Code snippets */
     .code-block {
@@ -277,6 +284,7 @@
 
         <hr class="divider">
 
+        {{if .ExtraTags}}
         <div class="feature-grid">
           <div class="feature-item">
             <div class="feature-title">Built for Professionals</div>
@@ -302,8 +310,9 @@
             </div>
           </div>
         </div>
+        {{end}}
 
-        <p>{{.ClosingMessage}}</p>
+        <p id="closing-message">{{.ClosingMessage}}</p>
 
         <p style="margin-top: 30px;">
           Best regards,<br>
@@ -317,10 +326,10 @@
 
       <hr class="divider">
 
-      <p style="margin-top: 30px; font-size: 12px; color: #6b7280;">
-        You're receiving this email because you signed up for WAV Editor updates.<br>
-        <a href="{{.PreferencesUrl}}" style="color: #8b5cf6;">Email Preferences</a>
-      </p>
+      <!-- <p style="margin-top: 30px; font-size: 12px; color: #6b7280;"> -->
+      <!--   You're receiving this email because you signed up for WAV Editor updates.<br> -->
+      <!--   <a href="{{.PreferencesUrl}}" style="color: #8b5cf6;">Email Preferences</a> -->
+      <!-- </p> -->
     </div>
   </div>
 </body>

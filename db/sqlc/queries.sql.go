@@ -161,14 +161,14 @@ func (q *Queries) GetAllLicencesFromUserID(ctx context.Context, userID uuid.UUID
 }
 
 const getBetaEmail = `-- name: GetBetaEmail :one
-SELECT email, seen FROM beta_licences
+SELECT email, seen, name FROM beta_licences
 WHERE email = $1
 `
 
 func (q *Queries) GetBetaEmail(ctx context.Context, email sql.NullString) (BetaLicence, error) {
 	row := q.db.QueryRowContext(ctx, getBetaEmail, email)
 	var i BetaLicence
-	err := row.Scan(&i.Email, &i.Seen)
+	err := row.Scan(&i.Email, &i.Seen, &i.Name)
 	return i, err
 }
 
@@ -222,6 +222,18 @@ func (q *Queries) GetLicence(ctx context.Context, licenceKey string) (Licence, e
 		&i.Jti,
 	)
 	return i, err
+}
+
+const getNameFromBetaList = `-- name: GetNameFromBetaList :one
+SELECT name FROM beta_licences
+WHERE email = $1
+`
+
+func (q *Queries) GetNameFromBetaList(ctx context.Context, email sql.NullString) (sql.NullString, error) {
+	row := q.db.QueryRowContext(ctx, getNameFromBetaList, email)
+	var name sql.NullString
+	err := row.Scan(&name)
+	return name, err
 }
 
 const getUser = `-- name: GetUser :one

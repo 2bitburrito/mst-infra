@@ -9,12 +9,13 @@ import (
 type GenericEmailData struct {
 	HighlightWord  *string
 	FirstName      *string
-	MainMessage    *string
+	MainMessage    template.HTML
 	CtaText        *string
 	CtaLink        *string
 	SecondaryLink  *string
-	ClosingMessage *string
+	ClosingMessage template.HTML
 	PreferencesUrl *string
+	ExtraTags      bool
 }
 
 func TemplateEmail[T any](reader io.Reader, data T) (*bytes.Buffer, error) {

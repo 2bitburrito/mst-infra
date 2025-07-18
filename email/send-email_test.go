@@ -2,6 +2,7 @@ package email
 
 import (
 	"context"
+	"html/template"
 	"os"
 	"strings"
 	"testing"
@@ -22,11 +23,11 @@ func TestEmail(t *testing.T) {
 
 	emailData := html.GenericEmailData{
 		HighlightWord:  utils.StrPtr("Beta"),
-		MainMessage:    utils.StrPtr("Hello and welcome to this email test..."),
+		MainMessage:    template.HTML("<p>Hello and welcome to this email test...</p>"),
 		FirstName:      utils.StrPtr("Test"),
 		CtaText:        utils.StrPtr("Click Here"),
 		CtaLink:        utils.StrPtr("https://metasoundtools.com"),
-		ClosingMessage: utils.StrPtr("Thanks for agreeing to be a part of this beta program..."),
+		ClosingMessage: template.HTML("<p>Thanks for agreeing to be a part of this beta program...</p>"),
 		PreferencesUrl: utils.StrPtr("https://beta.metasoundtools.com/profile"),
 	}
 
@@ -40,7 +41,7 @@ func TestEmail(t *testing.T) {
 		t.Fatal(err)
 	}
 	emailParams := SendEmailParams{
-		ReceivingAddress: "hughandelsa@gmail.com",
+		ReceivingAddress: "palmerhap@gmail.com",
 		SendingAddress:   "hello@metasoundtools.com",
 		Subject:          "Test Email",
 		FormattedHtml:    html,

@@ -43,6 +43,10 @@ WHERE email = $2;
 SELECT * FROM beta_licences
 WHERE email = $1;
 
+-- name: GetNameFromBetaList :one
+SELECT name FROM beta_licences
+WHERE email = $1;
+
 -- name: AddTrialLicence :one
 INSERT INTO licences (user_id, machine_id, licence_type, expiry)
 VALUES ($1, $2, 'trial', NOW() + INTERVAL '14 days')

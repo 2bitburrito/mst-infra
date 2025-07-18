@@ -20,7 +20,6 @@ func returnJsonError(w http.ResponseWriter, e string, statusCode int) {
 		log.Println("error Marshalling error response")
 		http.Error(w, `{"success":false,"error":"internal error"}`, http.StatusInternalServerError)
 	}
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	w.Write(dat)
 }
