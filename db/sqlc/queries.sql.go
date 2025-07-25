@@ -123,6 +123,33 @@ func (q *Queries) ChangeMachineIDAndJTI(ctx context.Context, arg ChangeMachineID
 	return err
 }
 
+const getAllBetaEmails = `-- name: GetAllBetaEmails :many
+SELECT email, seen, name FROM beta_licences
+`
+
+func (q *Queries) GetAllBetaEmails(ctx context.Context) ([]BetaLicence, error) {
+	rows, err := q.db.QueryContext(ctx, getAllBetaEmails)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BetaLicence
+	for rows.Next() {
+		var i BetaLicence
+		if err := rows.Scan(&i.Email, &i.Seen, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getAllLicencesFromUserID = `-- name: GetAllLicencesFromUserID :many
 SELECT licence_key, user_id, machine_id, created_at, last_used_at, licence_type, expiry, jti FROM licences
 WHERE user_id = $1

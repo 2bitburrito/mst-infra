@@ -43,6 +43,9 @@ WHERE email = $2;
 SELECT * FROM beta_licences
 WHERE email = $1;
 
+-- name: GetAllBetaEmails :many
+SELECT * FROM beta_licences;
+
 -- name: GetNameFromBetaList :one
 SELECT name FROM beta_licences
 WHERE email = $1;

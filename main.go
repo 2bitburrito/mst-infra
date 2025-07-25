@@ -26,25 +26,26 @@ func (api *API) setupRouter() *http.ServeMux {
 
 	router.HandleFunc("/healthz/", api.checkHealth)
 
-	router.HandleFunc("POST /api/user", api.postUser)
-	router.HandleFunc("POST /api/cognito-user", api.postCognitoUser)
-	router.HandleFunc("PATCH /api/user/{id}", api.patchUser)
-	router.HandleFunc("GET /api/user/{id}", api.getUser)
-	router.HandleFunc("DELETE /api/user", api.deleteUser)
-	router.HandleFunc("GET /api/user/is-beta/{email}", api.checkUserIsBeta)
+	router.Handle("POST /api/user", api.apiMiddleware(http.HandlerFunc(api.postUser)))
+	router.Handle("POST /api/cognito-user", api.apiMiddleware(http.HandlerFunc(api.postCognitoUser)))
+	router.Handle("PATCH /api/user/{id}", api.apiMiddleware(http.HandlerFunc(api.patchUser)))
+	router.Handle("GET /api/user/{id}", api.apiMiddleware(http.HandlerFunc(api.getUser)))
+	router.Handle("DELETE /api/user", api.apiMiddleware(http.HandlerFunc(api.deleteUser)))
+	router.Handle("GET /api/user/is-beta/{email}", api.apiMiddleware(http.HandlerFunc(api.checkUserIsBeta)))
 
-	router.HandleFunc("PUT /api/email-beta-users", api.emailBetaUsers)
+	router.Handle("PUT /api/email-select-beta-users", api.apiMiddleware(http.HandlerFunc(api.emailSelectBetaUsers)))
+	router.Handle("PUT /api/email-all-beta-users", api.apiMiddleware(http.HandlerFunc(api.emailAllBetaUsers)))
 
-	router.HandleFunc("POST /api/license", api.postLicense)
-	router.HandleFunc("PATCH /api/license/{id}", api.patchLicense)
-	router.HandleFunc("GET /api/license/{id}", api.getLicense)
-	router.HandleFunc("POST /api/license/check", api.checkLicense)
+	router.Handle("POST /api/license", api.apiMiddleware(http.HandlerFunc(api.postLicense)))
+	router.Handle("PATCH /api/license/{id}", api.apiMiddleware(http.HandlerFunc(api.patchLicense)))
+	router.Handle("GET /api/license/{id}", api.apiMiddleware(http.HandlerFunc(api.getLicense)))
+	router.Handle("POST /api/license/check", api.desktopAppRouterMiddleware(http.HandlerFunc(api.checkLicense)))
 
-	router.HandleFunc("POST /api/create-login-code", api.createLoginCode)
-	router.HandleFunc("POST /api/check-login-code", api.checkLoginCodeAndCreateJWT)
+	router.Handle("POST /api/create-login-code", api.apiMiddleware(http.HandlerFunc(api.createLoginCode)))
+	router.Handle("POST /api/check-login-code", http.HandlerFunc(api.checkLoginCodeAndCreateJWT))
 
-	router.HandleFunc("POST /api/latest-binaries", api.insertLatestBinaries)
-	router.HandleFunc("GET /api/latest-binaries/{platform}/{arch}", api.getLatestBinaries)
+	router.Handle("POST /api/latest-binaries", api.apiMiddleware(http.HandlerFunc(api.insertLatestBinaries)))
+	router.Handle("GET /api/latest-binaries/{platform}/{arch}", api.apiMiddleware(http.HandlerFunc(api.getLatestBinaries)))
 
 	return router
 }
@@ -56,19 +57,19 @@ func (api *API) checkHealth(w http.ResponseWriter, req *http.Request) {
 	w.Write([]byte("OK"))
 }
 
-func (api *API) middlewareSetup(next http.Handler) http.Handler {
+func (api *API) desktopAppRouterMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/healthz/" ||
-			r.URL.Path == "/healthz" {
-			log.Printf("Running Health Check From: %s", r.RemoteAddr)
-			next.ServeHTTP(w, r)
-			return
-		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (api *API) apiMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		allowedOrigins := map[string]bool{
 			"http://localhost:3000":      true,
 			"https://metasoundtools.com": true,
 		}
-		// CORS config
+
 		origin := r.Header.Get("Origin")
 		if allowedOrigins[origin] {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
@@ -87,7 +88,6 @@ func (api *API) middlewareSetup(next http.Handler) http.Handler {
 			returnJsonError(w, "Unauthorized Api Key from: "+r.RemoteAddr, http.StatusInternalServerError)
 			return
 		}
-
 		next.ServeHTTP(w, r)
 	})
 }
@@ -126,10 +126,9 @@ func main() {
 	}
 
 	router := api.setupRouter()
-	handler := api.middlewareSetup(router)
 
 	server := &http.Server{
-		Handler: handler,
+		Handler: router,
 		Addr:    ":" + cfg.Port,
 	}
 

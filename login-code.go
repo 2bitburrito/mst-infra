@@ -62,8 +62,6 @@ func (api *API) createLoginCode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Request) {
-	log.Println("Checking Login Code")
-
 	var request LoginCodeRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
@@ -138,8 +136,6 @@ func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Reques
 		Expiry:     expiry,
 		JTI:        jti.UUID,
 	}
-	log.Println("NEW JWT PARAMS:")
-	utils.PrintPretty(params)
 
 	jwtToken, err := jwt.CreateJWT(params)
 	if err != nil {
@@ -147,8 +143,6 @@ func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	log.Println("Created New JWT for user: ", params.UserID)
-	jwtJSON, _ := json.MarshalIndent(params, "", "  ")
-	log.Println("Claims:", string(jwtJSON))
 
 	// Insert JTI into licence row
 	err = api.queries.ChangeJTI(r.Context(), database.ChangeJTIParams{
