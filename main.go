@@ -33,8 +33,8 @@ func (api *API) setupRouter() *http.ServeMux {
 	router.Handle("DELETE /api/user", api.apiMiddleware(http.HandlerFunc(api.deleteUser)))
 	router.Handle("GET /api/user/is-beta/{email}", api.apiMiddleware(http.HandlerFunc(api.checkUserIsBeta)))
 
-	router.Handle("PUT /api/email-select-beta-users", api.apiMiddleware(http.HandlerFunc(api.emailSelectBetaUsers)))
 	router.Handle("PUT /api/email-all-beta-users", api.apiMiddleware(http.HandlerFunc(api.emailAllBetaUsers)))
+	router.Handle("PUT /api/email-beta-users", api.apiMiddleware(http.HandlerFunc(api.emailSelectBetaUsers)))
 
 	router.Handle("POST /api/license", api.apiMiddleware(http.HandlerFunc(api.postLicense)))
 	router.Handle("PATCH /api/license/{id}", api.apiMiddleware(http.HandlerFunc(api.patchLicense)))
@@ -59,6 +59,7 @@ func (api *API) checkHealth(w http.ResponseWriter, req *http.Request) {
 
 func (api *API) desktopAppRouterMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println("inside desktop middleware")
 		next.ServeHTTP(w, r)
 	})
 }
