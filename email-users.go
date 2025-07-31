@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"sync"
 
@@ -91,6 +92,8 @@ func (api *API) emailAllBetaUsers(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		returnJsonError(w, "error getting licences from db"+err.Error(), 500)
 	}
+	log.Printf("Sending emails to: %+v", betaRows)
+
 	err = api.sendBetaInvites(r.Context(), sendInviteParams{betaRows: betaRows})
 	if err != nil {
 		returnJsonError(w, "error sending emails: "+err.Error(), 500)
@@ -113,7 +116,7 @@ func (api *API) sendBetaInvites(ctx context.Context, params sendInviteParams) er
 			if name == "" {
 				user, err := api.queries.GetNameFromBetaList(ctx, sql.NullString{Valid: true, String: row.Email.String})
 				if err != nil {
-					errCh <- fmt.Errorf("error getting user from email: %s: %s", row.Email.String, err)
+					errCh <- fmt.Errorf("error getting user's name from email address: %s: %s", row.Email.String, err)
 					return
 				}
 				name = user.String
@@ -148,6 +151,7 @@ func (api *API) sendBetaInvites(ctx context.Context, params sendInviteParams) er
 				FormattedHtml:    htmlEmail,
 			}
 			api.config.EmailClient.SendEmail(params)
+			log.Printf("Successfully sent email to: %s", row.Email.String)
 		}(row)
 	}
 
