@@ -11,14 +11,12 @@ import (
 func returnJsonError(w http.ResponseWriter, e string, statusCode int) {
 	log.Println(e)
 	rtnMap := utils.JsonReturn{
-		Success: false,
-		Error:   e,
-		Value:   nil,
+		Error: e,
 	}
 	dat, err := json.Marshal(rtnMap)
 	if err != nil {
 		log.Println("error Marshalling error response")
-		http.Error(w, `{"success":false,"error":"internal error"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 	}
 	w.WriteHeader(statusCode)
 	w.Write(dat)

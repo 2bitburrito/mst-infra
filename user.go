@@ -80,8 +80,8 @@ func (api *API) postUser(w http.ResponseWriter, r *http.Request) {
 	returnJsonError(w, "Method not yet implemented", http.StatusNotFound)
 }
 
+// When user is created in cognito we either assign them to a trial licence or Beta licence
 func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
-	// When user is created in cognito we either assign them to a trial licence or Beta licence
 	var cognitoUser CognitoUser
 
 	data, err := io.ReadAll(r.Body)
@@ -122,7 +122,6 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("Inserting user: ", args)
 	if err := api.queries.InsertUser(r.Context(), args); err != nil {
-		log.Println("ERROR: ", err.Error())
 		returnJsonError(w, "error in while writing cognito user to db: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
