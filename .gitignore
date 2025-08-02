@@ -1,7 +1,9 @@
 **/.env
+**/.env.goose
 .terraform/
 private.pem
 public.pem
 vendor/
 .opencode/
 .DS_STORE
+
