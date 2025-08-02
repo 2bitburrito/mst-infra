@@ -1,9 +1,7 @@
-.env
+**/.env
 .terraform/
 private.pem
 public.pem
 vendor/
 .opencode/
-lambda/bootstrap
-lambda/cognito_receiver
-lambda/*.zip
+.DS_STORE

@@ -2,7 +2,7 @@
 set -e
 
 if [ -z "$1" ]; then
-  echo "Usage: $0 <function_name>"
+  echo "Usage: $0 <function_name> [-deploy]"
   exit 1
 fi
 
