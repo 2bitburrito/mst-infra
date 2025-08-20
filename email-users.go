@@ -117,7 +117,6 @@ func (api *API) sendBetaInvites(ctx context.Context, params sendInviteParams) er
 				user, err := api.queries.GetNameFromBetaList(ctx, sql.NullString{Valid: true, String: row.Email.String})
 				if err != nil {
 					errCh <- fmt.Errorf("error getting user's name from email address: %s: %s", row.Email.String, err)
-					return
 				}
 				name = user.String
 			}

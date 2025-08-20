@@ -9,6 +9,7 @@ import (
 	"github.com/2bitburrito/mst-infra/email"
 	"github.com/aws/aws-sdk-go-v2/config"
 	_ "github.com/joho/godotenv/autoload"
+	"github.com/stripe/stripe-go/v82"
 )
 
 type Config struct {
@@ -18,26 +19,46 @@ type Config struct {
 	CognitoPoolID  string
 	EmailClient    email.EmailSender
 	ReaperDuration time.Duration
+	StripeClient   stripe.Client
+	Env            Env
 	context        context.Context
 }
+type Env string
+
+const (
+	Dev     Env = "dev"
+	Prod    Env = "prod"
+	Staging Env = "staging"
+)
 
 type PostgresConfig struct {
 	URL string
 }
 
 func LoadConfig() (*Config, error) {
+	env := Env(os.Getenv("ENV"))
+
 	context := context.Background()
+
 	awsCfg, err := config.LoadDefaultConfig(context, config.WithRegion("us-west-1"))
 	if err != nil {
 		return nil, err
 	}
+
 	sesClient := email.SesEmailClient{
 		AwsCfg:       awsCfg,
 		SendingEmail: "hello@metasoundtools.com",
 	}
+
 	dbUrl, err := getDbUrl()
 	if err != nil {
 		return nil, err
+	}
+	var stripeClient stripe.Client
+	if env == "prod" {
+		stripeClient = *stripe.NewClient(os.Getenv("STRIPE_SECRET_KEY"))
+	} else {
+		stripeClient = *stripe.NewClient(os.Getenv("STRIPE_SECRET_KEY_SANDBOX"))
 	}
 
 	cfg := &Config{
@@ -49,9 +70,11 @@ func LoadConfig() (*Config, error) {
 		EmailClient:    sesClient,
 		CognitoPoolID:  os.Getenv("COGNITO_POOL_ID"),
 		ReaperDuration: 10 * time.Minute,
+		StripeClient:   stripeClient,
+		Env:            env,
 	}
 	log.Println("Creating config...")
-	log.Println("Environment running as:", os.Getenv("ENV"))
+	log.Println("Environment running as:", env)
 	log.Printf("Port: %v\n", len(cfg.Port) != 0)
 	log.Printf("ApiKey: %v\n", len(cfg.ApiKey) != 0)
 	log.Printf("DB URL: %v\n", len(cfg.DB.URL) != 0)

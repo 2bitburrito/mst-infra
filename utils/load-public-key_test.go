@@ -6,7 +6,8 @@ import (
 )
 
 func TestLoadPublicKey(t *testing.T) {
-	key, err := LoadPublicKey()
+	publicKeyPath := "../public.pem"
+	key, err := LoadPublicKey(publicKeyPath)
 	if err != nil {
 		t.Errorf("Failed to load public key: %v", err)
 	}

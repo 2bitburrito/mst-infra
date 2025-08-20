@@ -55,6 +55,15 @@ func (ns NullLicenceTypeEnum) Value() (driver.Value, error) {
 	return string(ns.LicenceTypeEnum), nil
 }
 
+type AppMessage struct {
+	Email              string
+	CreatedAt          sql.NullTime
+	NumberOfLicenses   int32
+	SubscribedToEmails bool
+	FullName           string
+	ID                 uuid.UUID
+}
+
 type AppRelease struct {
 	ID             uuid.UUID
 	Platform       string
@@ -93,4 +102,5 @@ type User struct {
 	SubscribedToEmails bool
 	FullName           string
 	ID                 uuid.UUID
+	StripeID           sql.NullString
 }

@@ -67,6 +67,22 @@ func (q *Queries) AddNewReleaseData(ctx context.Context, arg AddNewReleaseDataPa
 	return err
 }
 
+const addStripeIDtoUser = `-- name: AddStripeIDtoUser :exec
+UPDATE users
+SET stripe_id = $2
+WHERE id = $1
+`
+
+type AddStripeIDtoUserParams struct {
+	ID       uuid.UUID
+	StripeID sql.NullString
+}
+
+func (q *Queries) AddStripeIDtoUser(ctx context.Context, arg AddStripeIDtoUserParams) error {
+	_, err := q.db.ExecContext(ctx, addStripeIDtoUser, arg.ID, arg.StripeID)
+	return err
+}
+
 const addTrialLicence = `-- name: AddTrialLicence :one
 INSERT INTO licences (user_id, machine_id, licence_type, expiry)
 VALUES ($1, $2, 'trial', NOW() + INTERVAL '14 days')
@@ -264,7 +280,7 @@ func (q *Queries) GetNameFromBetaList(ctx context.Context, email sql.NullString)
 }
 
 const getUser = `-- name: GetUser :one
-SELECT email, has_license, created_at, number_of_licenses, subscribed_to_emails, full_name, id FROM users
+SELECT email, has_license, created_at, number_of_licenses, subscribed_to_emails, full_name, id, stripe_id FROM users
 WHERE id = $1 LIMIT 1
 `
 
@@ -279,12 +295,13 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.SubscribedToEmails,
 		&i.FullName,
 		&i.ID,
+		&i.StripeID,
 	)
 	return i, err
 }
 
 const getUserFromEmail = `-- name: GetUserFromEmail :one
-SELECT email, has_license, created_at, number_of_licenses, subscribed_to_emails, full_name, id FROM users
+SELECT email, has_license, created_at, number_of_licenses, subscribed_to_emails, full_name, id, stripe_id FROM users
 WHERE email = $1 LIMIT 1
 `
 
@@ -299,6 +316,7 @@ func (q *Queries) GetUserFromEmail(ctx context.Context, email string) (User, err
 		&i.SubscribedToEmails,
 		&i.FullName,
 		&i.ID,
+		&i.StripeID,
 	)
 	return i, err
 }

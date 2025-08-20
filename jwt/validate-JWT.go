@@ -9,7 +9,8 @@ import (
 )
 
 func ValidateJWT(tokenString string) (*Claims, error) {
-	key, err := utils.LoadPublicKey()
+	publicKeyPath := "public.pem"
+	key, err := utils.LoadPublicKey(publicKeyPath)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't find public.pem file %v", err.Error())
 	}

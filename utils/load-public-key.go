@@ -8,8 +8,7 @@ import (
 	"os"
 )
 
-func LoadPublicKey() (*ecdsa.PublicKey, error) {
-	publicKeyPath := "public.pem"
+func LoadPublicKey(publicKeyPath string) (*ecdsa.PublicKey, error) {
 	pemData, err := os.ReadFile(publicKeyPath)
 	if err != nil {
 		return nil, err

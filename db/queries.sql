@@ -92,3 +92,8 @@ WHERE is_latest = TRUE
   AND architecture = $1
   AND platform = $2
 LIMIT 1;
+
+-- name: AddStripeIDtoUser :exec
+UPDATE users
+SET stripe_id = $2
+WHERE id = $1;
