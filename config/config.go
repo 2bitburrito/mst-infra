@@ -13,15 +13,16 @@ import (
 )
 
 type Config struct {
-	DB             PostgresConfig
-	Port           string
-	ApiKey         string
-	CognitoPoolID  string
-	EmailClient    email.EmailSender
-	ReaperDuration time.Duration
-	StripeClient   stripe.Client
-	Env            Env
-	context        context.Context
+	DB                   PostgresConfig
+	Port                 string
+	ApiKey               string
+	CognitoPoolID        string
+	EmailClient          email.EmailSender
+	ReaperDuration       time.Duration
+	StripeClient         stripe.Client
+	StripeEndpointSecret string
+	Env                  Env
+	context              context.Context
 }
 type Env string
 
@@ -60,6 +61,12 @@ func LoadConfig() (*Config, error) {
 	} else {
 		stripeClient = *stripe.NewClient(os.Getenv("STRIPE_SECRET_KEY_SANDBOX"))
 	}
+	var stripeEndpointSecret string
+	if env == "prod" {
+		stripeEndpointSecret = os.Getenv("STRIPE_ENDPOINT_SECRET")
+	} else {
+		stripeEndpointSecret = os.Getenv("STRIPE_ENDPOINT_SECRET_SANDBOX")
+	}
 
 	cfg := &Config{
 		Port:   os.Getenv("PORT"),
@@ -67,11 +74,12 @@ func LoadConfig() (*Config, error) {
 		DB: PostgresConfig{
 			URL: dbUrl,
 		},
-		EmailClient:    sesClient,
-		CognitoPoolID:  os.Getenv("COGNITO_POOL_ID"),
-		ReaperDuration: 10 * time.Minute,
-		StripeClient:   stripeClient,
-		Env:            env,
+		EmailClient:          sesClient,
+		CognitoPoolID:        os.Getenv("COGNITO_POOL_ID"),
+		ReaperDuration:       10 * time.Minute,
+		StripeClient:         stripeClient,
+		StripeEndpointSecret: stripeEndpointSecret,
+		Env:                  env,
 	}
 	log.Println("Creating config...")
 	log.Println("Environment running as:", env)

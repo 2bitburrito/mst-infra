@@ -94,6 +94,12 @@ type Licence struct {
 	Jti         uuid.NullUUID
 }
 
+type StripeEvent struct {
+	ID          string
+	Type        string
+	ProcessedAt sql.NullTime
+}
+
 type User struct {
 	Email              string
 	HasLicense         bool

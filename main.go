@@ -15,10 +15,11 @@ import (
 )
 
 type API struct {
-	db                *sql.DB
-	queries           Queries.Queries
-	verificationStore *store.VerificationStore
-	config            config.Config
+	db                 *sql.DB
+	queries            Queries.Queries
+	verificationStore  *store.VerificationStore
+	handledEventsStore *store.HandledEventsStore
+	config             config.Config
 }
 
 func (api *API) setupRouter() *http.ServeMux {
@@ -39,6 +40,7 @@ func (api *API) setupRouter() *http.ServeMux {
 
 	router.Handle("POST /api/create-stripe-customer", api.apiMiddleware(http.HandlerFunc(api.createStripeCustomer)))
 	router.Handle("POST /api/create-stripe-checkout", api.apiMiddleware(http.HandlerFunc(api.createStripeCheckout)))
+	router.Handle("POST /api/stripe-webhook", http.HandlerFunc(api.handleStripeWebhook))
 
 	router.Handle("POST /api/license", api.apiMiddleware(http.HandlerFunc(api.postLicense)))
 	router.Handle("PATCH /api/license/{id}", api.apiMiddleware(http.HandlerFunc(api.patchLicense)))
@@ -99,6 +101,7 @@ func (api *API) apiMiddleware(next http.Handler) http.Handler {
 func main() {
 	cfg, _ := config.LoadConfig()
 	verificationStore := store.CreateVerificationStore(1*time.Minute, 10*time.Minute)
+	handledStripeEvents := store.CreateHandledEventStore(24 * time.Hour)
 
 	var db *sql.DB
 	db, err := sql.Open("postgres", cfg.DB.URL)
@@ -120,10 +123,11 @@ func main() {
 	queries := Queries.New(db)
 
 	api := &API{
-		db:                db,
-		queries:           *queries,
-		verificationStore: verificationStore,
-		config:            *cfg,
+		db:                 db,
+		queries:            *queries,
+		verificationStore:  verificationStore,
+		handledEventsStore: handledStripeEvents,
+		config:             *cfg,
 	}
 	if api.db == nil {
 		panic("DB IS NIL")

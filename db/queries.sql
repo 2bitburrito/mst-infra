@@ -97,3 +97,16 @@ LIMIT 1;
 UPDATE users
 SET stripe_id = $2
 WHERE id = $1;
+
+-- name: AddStripeEvent :exec
+INSERT INTO stripe_events (
+  id,
+  type,
+  processed_at
+  )
+  VALUES($1, $2, NOW());
+
+-- name: StripeEventExists :one
+SELECT EXISTS(
+  SELECT * FROM stripe_events WHERE id=$1
+);

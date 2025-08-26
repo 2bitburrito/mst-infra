@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/2bitburrito/mst-infra/utils"
 	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v82"
+	"github.com/stripe/stripe-go/v82/webhook"
 )
 
 type checkoutPayload struct {
@@ -110,5 +112,56 @@ func (api *API) createStripeCheckout(w http.ResponseWriter, r *http.Request) {
 		returnJsonError(w, "Couln't start new checkout session: "+err.Error(), 500)
 		return
 	}
-	w.WriteHeader(http.StatusCreated)
+}
+
+func (api *API) handleStripeWebhook(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Only POST requests are accepted", http.StatusMethodNotAllowed)
+		return
+	}
+	const MaxBodyBytes = int64(65536)
+	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
+	payload, err := io.ReadAll(r.Body)
+	if err != nil {
+		returnJsonError(w, "Error reading request body: "+err.Error(), 503)
+		return
+	}
+	sigHeader := r.Header.Get("Stripe-Signature")
+	event, err := webhook.ConstructEvent(payload, sigHeader, api.config.StripeEndpointSecret)
+	if err != nil {
+		returnJsonError(w, "Couldn't construct new Webhook event or verify signature: "+err.Error(), 400)
+		return
+	}
+	handlerType, exists := stripeAPI.EventHandler[event.Type]
+	if !exists {
+		returnJsonError(w, "Event type not relevant", 405)
+		return
+	}
+	exists, err = api.queries.StripeEventExists(r.Context(), event.ID)
+	if err != nil {
+		returnJsonError(w, "Couldn't check stripe event in DB: "+err.Error(), 500)
+		return
+	}
+	if exists {
+		returnJsonError(w, "Event already handled", 409)
+		return
+	}
+	if err := api.queries.AddStripeEvent(r.Context(), database.AddStripeEventParams{
+		ID:   event.ID,
+		Type: string(event.Type),
+	}); err != nil {
+		fmt.Println("ERROR: couldn't set stripe event in DB: ", err)
+	}
+
+	switch handlerType {
+	case "PAYMENT_SUCCESS":
+		fmt.Println("stripe id: ", event.Data.Object["customer"])
+		// res, err := api.handlePaymentSuccess(event)
+	case "PAYMENT_FAILED":
+		fmt.Printf("Payment Failed for stripeID: %s\n", event.Account)
+	case "PAYMENT_CANCELED":
+		fmt.Println("Payment Canceled")
+	case "ACTION_REQUIRED":
+		fmt.Println("action required")
+	}
 }

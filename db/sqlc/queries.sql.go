@@ -67,6 +67,25 @@ func (q *Queries) AddNewReleaseData(ctx context.Context, arg AddNewReleaseDataPa
 	return err
 }
 
+const addStripeEvent = `-- name: AddStripeEvent :exec
+INSERT INTO stripe_events (
+  id,
+  type,
+  processed_at
+  )
+  VALUES($1, $2, NOW())
+`
+
+type AddStripeEventParams struct {
+	ID   string
+	Type string
+}
+
+func (q *Queries) AddStripeEvent(ctx context.Context, arg AddStripeEventParams) error {
+	_, err := q.db.ExecContext(ctx, addStripeEvent, arg.ID, arg.Type)
+	return err
+}
+
 const addStripeIDtoUser = `-- name: AddStripeIDtoUser :exec
 UPDATE users
 SET stripe_id = $2
@@ -366,6 +385,19 @@ WHERE email = $1
 func (q *Queries) SetBetaRowToSeen(ctx context.Context, email sql.NullString) error {
 	_, err := q.db.ExecContext(ctx, setBetaRowToSeen, email)
 	return err
+}
+
+const stripeEventExists = `-- name: StripeEventExists :one
+SELECT EXISTS(
+  SELECT id, type, processed_at FROM stripe_events WHERE id=$1
+)
+`
+
+func (q *Queries) StripeEventExists(ctx context.Context, id string) (bool, error) {
+	row := q.db.QueryRowContext(ctx, stripeEventExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const unsetIsLatest = `-- name: UnsetIsLatest :exec
