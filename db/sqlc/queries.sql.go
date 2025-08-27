@@ -67,6 +67,24 @@ func (q *Queries) AddNewReleaseData(ctx context.Context, arg AddNewReleaseDataPa
 	return err
 }
 
+const addPaidLicence = `-- name: AddPaidLicence :one
+INSERT INTO licences (
+  user_id,
+  created_at,
+  licence_type
+) 
+VALUES (
+  $1, NOW(), 'paid'
+  ) RETURNING licence_key
+`
+
+func (q *Queries) AddPaidLicence(ctx context.Context, userID uuid.UUID) (string, error) {
+	row := q.db.QueryRowContext(ctx, addPaidLicence, userID)
+	var licence_key string
+	err := row.Scan(&licence_key)
+	return licence_key, err
+}
+
 const addStripeEvent = `-- name: AddStripeEvent :exec
 INSERT INTO stripe_events (
   id,
@@ -299,7 +317,7 @@ func (q *Queries) GetNameFromBetaList(ctx context.Context, email sql.NullString)
 }
 
 const getUser = `-- name: GetUser :one
-SELECT email, has_license, created_at, number_of_licenses, subscribed_to_emails, full_name, id, stripe_id FROM users
+SELECT email, created_at, number_of_licences, subscribed_to_emails, full_name, id, stripe_id FROM users
 WHERE id = $1 LIMIT 1
 `
 
@@ -308,9 +326,8 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 	var i User
 	err := row.Scan(
 		&i.Email,
-		&i.HasLicense,
 		&i.CreatedAt,
-		&i.NumberOfLicenses,
+		&i.NumberOfLicences,
 		&i.SubscribedToEmails,
 		&i.FullName,
 		&i.ID,
@@ -320,7 +337,7 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 }
 
 const getUserFromEmail = `-- name: GetUserFromEmail :one
-SELECT email, has_license, created_at, number_of_licenses, subscribed_to_emails, full_name, id, stripe_id FROM users
+SELECT email, created_at, number_of_licences, subscribed_to_emails, full_name, id, stripe_id FROM users
 WHERE email = $1 LIMIT 1
 `
 
@@ -329,9 +346,8 @@ func (q *Queries) GetUserFromEmail(ctx context.Context, email string) (User, err
 	var i User
 	err := row.Scan(
 		&i.Email,
-		&i.HasLicense,
 		&i.CreatedAt,
-		&i.NumberOfLicenses,
+		&i.NumberOfLicences,
 		&i.SubscribedToEmails,
 		&i.FullName,
 		&i.ID,
@@ -340,9 +356,25 @@ func (q *Queries) GetUserFromEmail(ctx context.Context, email string) (User, err
 	return i, err
 }
 
+const incrementLicences = `-- name: IncrementLicences :exec
+UPDATE users
+SET number_of_licences = number_of_licences + $2
+WHERE id = $1
+`
+
+type IncrementLicencesParams struct {
+	ID               uuid.UUID
+	NumberOfLicences int32
+}
+
+func (q *Queries) IncrementLicences(ctx context.Context, arg IncrementLicencesParams) error {
+	_, err := q.db.ExecContext(ctx, incrementLicences, arg.ID, arg.NumberOfLicences)
+	return err
+}
+
 const insertUser = `-- name: InsertUser :exec
-INSERT INTO users (id, email, full_name, has_license, subscribed_to_emails) 
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO users (id, email, full_name, subscribed_to_emails) 
+VALUES ($1, $2, $3, $4)
 RETURNING id
 `
 
@@ -350,7 +382,6 @@ type InsertUserParams struct {
 	ID                 uuid.UUID
 	Email              string
 	FullName           string
-	HasLicense         bool
 	SubscribedToEmails bool
 }
 
@@ -359,7 +390,6 @@ func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) error {
 		arg.ID,
 		arg.Email,
 		arg.FullName,
-		arg.HasLicense,
 		arg.SubscribedToEmails,
 	)
 	return err
@@ -415,6 +445,17 @@ type UnsetIsLatestParams struct {
 
 func (q *Queries) UnsetIsLatest(ctx context.Context, arg UnsetIsLatestParams) error {
 	_, err := q.db.ExecContext(ctx, unsetIsLatest, arg.Platform, arg.Architecture)
+	return err
+}
+
+const updateLicenceUsedTime = `-- name: UpdateLicenceUsedTime :exec
+UPDATE licences
+SET last_used_at = NOW()
+WHERE licence_key = $1
+`
+
+func (q *Queries) UpdateLicenceUsedTime(ctx context.Context, licenceKey string) error {
+	_, err := q.db.ExecContext(ctx, updateLicenceUsedTime, licenceKey)
 	return err
 }
 

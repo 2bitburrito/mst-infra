@@ -102,9 +102,8 @@ type StripeEvent struct {
 
 type User struct {
 	Email              string
-	HasLicense         bool
 	CreatedAt          sql.NullTime
-	NumberOfLicenses   int32
+	NumberOfLicences   int32
 	SubscribedToEmails bool
 	FullName           string
 	ID                 uuid.UUID

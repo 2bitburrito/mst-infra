@@ -30,8 +30,8 @@ SET machine_id = null
 WHERE licence_key = $1;
 
 -- name: InsertUser :exec
-INSERT INTO users (id, email, full_name, has_license, subscribed_to_emails) 
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO users (id, email, full_name, subscribed_to_emails) 
+VALUES ($1, $2, $3, $4)
 RETURNING id;
 
 -- name: UpdateUserId :exec
@@ -64,6 +64,11 @@ RETURNING licence_key, expiry;
 UPDATE beta_licences
 SET seen = true
 WHERE email = $1;
+
+-- name: UpdateLicenceUsedTime :exec
+UPDATE licences
+SET last_used_at = NOW()
+WHERE licence_key = $1;
 
 
 -- name: UnsetIsLatest :exec
@@ -110,3 +115,18 @@ INSERT INTO stripe_events (
 SELECT EXISTS(
   SELECT * FROM stripe_events WHERE id=$1
 );
+
+-- name: AddPaidLicence :one
+INSERT INTO licences (
+  user_id,
+  created_at,
+  licence_type
+) 
+VALUES (
+  $1, NOW(), 'paid'
+  ) RETURNING licence_key;
+
+-- name: IncrementLicences :exec
+UPDATE users
+SET number_of_licences = number_of_licences + $2
+WHERE id = $1;

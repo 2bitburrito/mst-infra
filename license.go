@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"log"
@@ -97,4 +98,7 @@ func (api *API) checkLicense(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Write(dat)
+	if err := api.queries.UpdateLicenceUsedTime(context.Background(), dbLicence.LicenceKey); err != nil {
+		log.Printf("Error while setting last_seen_at in licences for %s\n %v\n", dbLicence.LicenceKey, err)
+	}
 }

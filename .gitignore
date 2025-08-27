@@ -6,4 +6,5 @@ public.pem
 vendor/
 .opencode/
 .DS_STORE
-
+main
+out

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -10,7 +11,6 @@ import (
 
 	database "github.com/2bitburrito/mst-infra/db/sqlc"
 	"github.com/2bitburrito/mst-infra/internal/stripeAPI"
-	"github.com/2bitburrito/mst-infra/utils"
 	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/webhook"
@@ -18,6 +18,7 @@ import (
 
 type checkoutPayload struct {
 	StripeCustomerID string              `json:"stripeCustomerID"`
+	UserID           string              `json:"userID"`
 	Products         []stripeAPI.Product `json:"products"`
 }
 
@@ -66,6 +67,7 @@ func (api *API) createStripeCustomer(w http.ResponseWriter, r *http.Request) {
 	}
 	returnJson := map[string]string{
 		"stripeID": stripeCustomerID,
+		"userID":   user.ID.String(),
 	}
 	json.NewEncoder(w).Encode(returnJson)
 }
@@ -76,19 +78,22 @@ func (api *API) createStripeCheckout(w http.ResponseWriter, r *http.Request) {
 		returnJsonError(w, "Couldn't decode response body "+err.Error(), 500)
 		return
 	}
-	defer func() {
-		err := r.Body.Close()
-		if err != nil {
-			log.Print("Error: Couldn't close the body within create stripe customer")
-		}
-	}()
-	baseURL := utils.GetBaseURL(r)
+	defer r.Body.Close()
+
+	var baseURL string
+	if api.config.Env == "dev" {
+		baseURL = "http://localhost:3000"
+	} else {
+		baseURL = "https://metasoundtools.com"
+	}
+
 	successURL := fmt.Sprintf("%s/success/", baseURL)
 	params := &stripe.CheckoutSessionCreateParams{
 		SuccessURL: stripe.String(successURL),
 		LineItems:  []*stripe.CheckoutSessionCreateLineItemParams{},
 		Customer:   stripe.String(payload.StripeCustomerID),
 		Mode:       stripe.String("payment"),
+		Metadata:   map[string]string{"userID": payload.UserID},
 	}
 	for _, prod := range payload.Products {
 		priceCode := stripeAPI.GetProductPrice(prod, api.config.Env)
@@ -102,14 +107,14 @@ func (api *API) createStripeCheckout(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := api.config.StripeClient.V1CheckoutSessions.Create(r.Context(), params)
 	if err != nil {
-		returnJsonError(w, "Couldn't start new Stripe session: "+err.Error(), 500)
+		returnJsonError(w, "Couldn't start new Stripe sessionObj: "+err.Error(), 500)
 		return
 	}
 	returnJson := map[string]string{
 		"checkoutURL": result.URL,
 	}
 	if err := json.NewEncoder(w).Encode(returnJson); err != nil {
-		returnJsonError(w, "Couln't start new checkout session: "+err.Error(), 500)
+		returnJsonError(w, "Couln't start new checkout sessionObj: "+err.Error(), 500)
 		return
 	}
 }
@@ -134,7 +139,7 @@ func (api *API) handleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 	handlerType, exists := stripeAPI.EventHandler[event.Type]
 	if !exists {
-		returnJsonError(w, "Event type not relevant", 405)
+		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 	exists, err = api.queries.StripeEventExists(r.Context(), event.ID)
@@ -146,22 +151,115 @@ func (api *API) handleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 		returnJsonError(w, "Event already handled", 409)
 		return
 	}
-	if err := api.queries.AddStripeEvent(r.Context(), database.AddStripeEventParams{
+	err = api.queries.AddStripeEvent(r.Context(), database.AddStripeEventParams{
 		ID:   event.ID,
 		Type: string(event.Type),
-	}); err != nil {
-		fmt.Println("ERROR: couldn't set stripe event in DB: ", err)
+	})
+	if err != nil {
+		log.Println("ERROR: couldn't set stripe event in DB: ", err)
 	}
 
 	switch handlerType {
 	case "PAYMENT_SUCCESS":
-		fmt.Println("stripe id: ", event.Data.Object["customer"])
-		// res, err := api.handlePaymentSuccess(event)
+		var successObj *paymentSuccess
+
+		switch event.Type {
+		case "checkout.session.completed":
+			fmt.Println("HERE")
+			successObj, err = api.handleCheckoutSuccess(r.Context(), event)
+			if err != nil {
+				returnJsonError(w, "Couldn't get checkout details "+err.Error(), 500)
+				return
+			}
+
+		case "invoice.paid":
+			successObj, err = api.handleInvoicePaid(r.Context(), event)
+			if err != nil {
+				returnJsonError(w, "Couldn't get invoice details "+err.Error(), 500)
+				return
+			}
+		}
+		if successObj == nil {
+			returnJsonError(w, "Couldn't get required information from stripe", 500)
+			return
+		}
+		fmt.Println("success obj: ", *successObj)
+
+		// HACK: This whole transaction is a problem if we have multiple products...
+		// Fine for now as we only sell a standard-licence but update if plugins or something
+		// else comes along
+		tx, err := api.db.Begin()
+		if err != nil {
+			returnJsonError(w, "Couldn't create db tx"+err.Error(), 500)
+			return
+		}
+		defer tx.Rollback()
+		qtx := api.queries.WithTx(tx)
+		if err := qtx.IncrementLicences(r.Context(), database.IncrementLicencesParams{
+			ID:               successObj.userID.UUID,
+			NumberOfLicences: int32(successObj.lineItems[0].Quantity),
+		}); err != nil {
+			returnJsonError(w, "Couldn't increment licences: "+err.Error(), 500)
+			return
+		}
+		newLicences := make([]string, 0, len(successObj.lineItems))
+		for range successObj.lineItems {
+			licence, err := qtx.AddPaidLicence(r.Context(), successObj.userID.UUID)
+			if err != nil {
+				returnJsonError(w, "Couldn't create new licence: "+err.Error(), 500)
+				return
+			}
+			newLicences = append(newLicences, licence)
+		}
+		fmt.Println("New Licences: ", newLicences)
+		if err := tx.Commit(); err != nil {
+			returnJsonError(w, "Error in DB Transaction: "+err.Error(), 500)
+			return
+		}
 	case "PAYMENT_FAILED":
-		fmt.Printf("Payment Failed for stripeID: %s\n", event.Account)
+		fmt.Printf("Payment Failed for event: %s\n", event.Data.Object["id"])
 	case "PAYMENT_CANCELED":
+		// I assume we just email them...?
 		fmt.Println("Payment Canceled")
 	case "ACTION_REQUIRED":
-		fmt.Println("action required")
+		// Here we email them a prompt to take action to continue...
+		fmt.Println("Action required")
 	}
+}
+
+type paymentSuccess struct {
+	lineItems []*stripe.LineItem
+	userID    uuid.NullUUID
+}
+
+func (api *API) handleCheckoutSuccess(ctx context.Context, event stripe.Event) (*paymentSuccess, error) {
+	eventID := event.Data.Object["id"].(string)
+	fmt.Println("EventID: ", eventID)
+	checkoutParams := &stripe.CheckoutSessionRetrieveParams{}
+	checkoutParams.AddExpand("line_items")
+	sessionObj, err := api.config.StripeClient.V1CheckoutSessions.Retrieve(ctx, eventID, checkoutParams)
+	if err != nil {
+		return &paymentSuccess{}, err
+	}
+	fmt.Printf("lineItems: %+v\n", *sessionObj.LineItems.Data[0])
+	fmt.Printf("item Price: %+v\n", sessionObj.LineItems.Data[0].Price.ID)
+
+	lineItemList := sessionObj.LineItems.Data
+	userID := sessionObj.Metadata["userID"]
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		log.Println("Couldn't parse uuid from checkout sesssion metadata")
+	}
+	returnObj := paymentSuccess{
+		lineItems: lineItemList,
+		userID: uuid.NullUUID{
+			Valid: true,
+			UUID:  userUUID,
+		},
+	}
+	return &returnObj, nil
+}
+
+func (api *API) handleInvoicePaid(ctx context.Context, event stripe.Event) (*paymentSuccess, error) {
+	return &paymentSuccess{}, nil
 }

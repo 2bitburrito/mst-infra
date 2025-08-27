@@ -55,7 +55,7 @@ func (api *API) getUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := "SELECT email, has_license, number_of_licenses, id FROM users WHERE id=$1"
+	query := "SELECT email,  number_of_licenses, id FROM users WHERE id=$1"
 	if err := api.db.QueryRow(query, id).Scan(&user.Email, &user.HasLicense, &user.NumberOfLicenses, &user.Id); err != nil {
 		if err == sql.ErrNoRows {
 			returnJsonError(w, "user id not found: "+err.Error(), http.StatusNotFound)
@@ -116,7 +116,6 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 		ID:                 cognitoUser.Sub,
 		Email:              cognitoUser.Email,
 		FullName:           cognitoUser.Name,
-		HasLicense:         false,
 		SubscribedToEmails: false,
 	}
 

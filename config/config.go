@@ -22,7 +22,7 @@ type Config struct {
 	StripeClient         stripe.Client
 	StripeEndpointSecret string
 	Env                  Env
-	context              context.Context
+	Context              context.Context
 }
 type Env string
 
@@ -38,10 +38,9 @@ type PostgresConfig struct {
 
 func LoadConfig() (*Config, error) {
 	env := Env(os.Getenv("ENV"))
+	ctx := context.Background()
 
-	context := context.Background()
-
-	awsCfg, err := config.LoadDefaultConfig(context, config.WithRegion("us-west-1"))
+	awsCfg, err := config.LoadDefaultConfig(ctx, config.WithRegion("us-west-1"))
 	if err != nil {
 		return nil, err
 	}
@@ -80,6 +79,7 @@ func LoadConfig() (*Config, error) {
 		StripeClient:         stripeClient,
 		StripeEndpointSecret: stripeEndpointSecret,
 		Env:                  env,
+		Context:              ctx,
 	}
 	log.Println("Creating config...")
 	log.Println("Environment running as:", env)

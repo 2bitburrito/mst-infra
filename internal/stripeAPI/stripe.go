@@ -64,11 +64,8 @@ var EventHandler = map[stripe.EventType]string{
 	"checkout.session.completed":      "PAYMENT_SUCCESS",
 	"invoice.paid":                    "PAYMENT_SUCCESS",
 	"invoice.payment_failed":          "PAYMENT_FAILED",
-	"invoice.payment_action_required": "ACTION_REQUIRED",
-	"invoice.upcoming":                "PAYMENT_PENDING",
 	"invoice.marked_uncollectible":    "PAYMENT_FAILED",
-	"invoice.payment_succeeded":       "PAYMENT_SUCCESS",
-	"payment_intent.succeeded":        "PAYMENT_SUCCESS",
 	"payment_intent.payment_failed":   "PAYMENT_FAILED",
 	"payment_intent.canceled":         "PAYMENT_CANCELED",
+	"invoice.payment_action_required": "ACTION_REQUIRED",
 }
