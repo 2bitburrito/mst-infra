@@ -109,7 +109,7 @@ func TestCheckLicence(t *testing.T) {
 		},
 	}
 	for _, test := range table {
-		rtnLicence, err := Check(test.licence.MachineID.String, test.licenceTable)
+		_, rtnLicence, err := CheckForValid(test.licence.MachineID.String, test.licenceTable)
 		if test.expect == "pass" {
 			if err != nil {
 				t.Error(err)

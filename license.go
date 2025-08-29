@@ -12,18 +12,6 @@ import (
 	"github.com/google/uuid"
 )
 
-func (api *API) postLicense(w http.ResponseWriter, r *http.Request) {
-	returnJsonError(w, "Method not yet implemented", http.StatusNotFound)
-}
-
-func (api *API) patchLicense(w http.ResponseWriter, r *http.Request) {
-	returnJsonError(w, "Method not yet implemented", http.StatusNotFound)
-}
-
-func (api *API) getLicense(w http.ResponseWriter, r *http.Request) {
-	returnJsonError(w, "Method not yet implemented", http.StatusNotFound)
-}
-
 type checkLicenceResponse struct {
 	Message string `json:"message"`
 	Action  string `json:"action"`
@@ -39,7 +27,7 @@ func (api *API) checkLicense(w http.ResponseWriter, r *http.Request) {
 	// Validate JWT
 	claims, err := jwt.ValidateJWT(jwtTokenString)
 	if err != nil {
-		returnJsonError(w, "jwt invalid", http.StatusUnauthorized)
+		returnJsonError(w, "jwt invalid: "+err.Error(), http.StatusUnauthorized)
 		return
 	}
 
@@ -87,17 +75,12 @@ func (api *API) checkLicense(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
 	responseBody := checkLicenceResponse{
 		Message: "License check successful",
 		Action:  "null",
 	}
-	dat, err := json.Marshal(responseBody)
-	if err != nil {
-		returnJsonError(w, "Error marshalling JSON response: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-	w.Write(dat)
+	respondWithJSON(w, http.StatusOK, responseBody)
+
 	if err := api.queries.UpdateLicenceUsedTime(context.Background(), dbLicence.LicenceKey); err != nil {
 		log.Printf("Error while setting last_seen_at in licences for %s\n %v\n", dbLicence.LicenceKey, err)
 	}

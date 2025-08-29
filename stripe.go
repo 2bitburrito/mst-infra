@@ -25,6 +25,9 @@ type checkoutPayload struct {
 type createCustomerPayload struct {
 	UserID uuid.UUID `json:"userID"`
 }
+type getStripeOrderPayload struct {
+	SessionID string `json:"checkoutSessionID"`
+}
 
 func (api *API) createStripeCustomer(w http.ResponseWriter, r *http.Request) {
 	var payload createCustomerPayload
@@ -69,7 +72,7 @@ func (api *API) createStripeCustomer(w http.ResponseWriter, r *http.Request) {
 		"stripeID": stripeCustomerID,
 		"userID":   user.ID.String(),
 	}
-	json.NewEncoder(w).Encode(returnJson)
+	respondWithJSON(w, http.StatusOK, returnJson)
 }
 
 func (api *API) createStripeCheckout(w http.ResponseWriter, r *http.Request) {
@@ -87,7 +90,7 @@ func (api *API) createStripeCheckout(w http.ResponseWriter, r *http.Request) {
 		baseURL = "https://metasoundtools.com"
 	}
 
-	successURL := fmt.Sprintf("%s/success/", baseURL)
+	successURL := fmt.Sprintf("%s/success?session_id={CHECKOUT_SESSION_ID}", baseURL)
 	params := &stripe.CheckoutSessionCreateParams{
 		SuccessURL: stripe.String(successURL),
 		LineItems:  []*stripe.CheckoutSessionCreateLineItemParams{},
@@ -95,6 +98,7 @@ func (api *API) createStripeCheckout(w http.ResponseWriter, r *http.Request) {
 		Mode:       stripe.String("payment"),
 		Metadata:   map[string]string{"userID": payload.UserID},
 	}
+
 	for _, prod := range payload.Products {
 		priceCode := stripeAPI.GetProductPrice(prod, api.config.Env)
 		params.LineItems = append(params.LineItems, &stripe.CheckoutSessionCreateLineItemParams{
@@ -105,6 +109,7 @@ func (api *API) createStripeCheckout(w http.ResponseWriter, r *http.Request) {
 			Quantity: stripe.Int64(1),
 		})
 	}
+
 	result, err := api.config.StripeClient.V1CheckoutSessions.Create(r.Context(), params)
 	if err != nil {
 		returnJsonError(w, "Couldn't start new Stripe sessionObj: "+err.Error(), 500)
@@ -113,10 +118,20 @@ func (api *API) createStripeCheckout(w http.ResponseWriter, r *http.Request) {
 	returnJson := map[string]string{
 		"checkoutURL": result.URL,
 	}
-	if err := json.NewEncoder(w).Encode(returnJson); err != nil {
-		returnJsonError(w, "Couln't start new checkout sessionObj: "+err.Error(), 500)
+	respondWithJSON(w, http.StatusOK, returnJson)
+}
+
+func (api *API) getStripeOrder(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.PathValue("session_id")
+
+	params := &stripe.CheckoutSessionRetrieveParams{}
+	params.AddExpand("line_items")
+	sessionDetails, err := api.config.StripeClient.V1CheckoutSessions.Retrieve(r.Context(), sessionID, params)
+	if err != nil {
+		returnJsonError(w, "Error while getting session from stripe: "+err.Error(), 500)
 		return
 	}
+	respondWithJSON(w, http.StatusOK, sessionDetails)
 }
 
 func (api *API) handleStripeWebhook(w http.ResponseWriter, r *http.Request) {
@@ -165,7 +180,6 @@ func (api *API) handleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 
 		switch event.Type {
 		case "checkout.session.completed":
-			fmt.Println("HERE")
 			successObj, err = api.handleCheckoutSuccess(r.Context(), event)
 			if err != nil {
 				returnJsonError(w, "Couldn't get checkout details "+err.Error(), 500)
@@ -183,7 +197,6 @@ func (api *API) handleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 			returnJsonError(w, "Couldn't get required information from stripe", 500)
 			return
 		}
-		fmt.Println("success obj: ", *successObj)
 
 		// HACK: This whole transaction is a problem if we have multiple products...
 		// Fine for now as we only sell a standard-licence but update if plugins or something
@@ -211,7 +224,6 @@ func (api *API) handleStripeWebhook(w http.ResponseWriter, r *http.Request) {
 			}
 			newLicences = append(newLicences, licence)
 		}
-		fmt.Println("New Licences: ", newLicences)
 		if err := tx.Commit(); err != nil {
 			returnJsonError(w, "Error in DB Transaction: "+err.Error(), 500)
 			return
@@ -234,15 +246,12 @@ type paymentSuccess struct {
 
 func (api *API) handleCheckoutSuccess(ctx context.Context, event stripe.Event) (*paymentSuccess, error) {
 	eventID := event.Data.Object["id"].(string)
-	fmt.Println("EventID: ", eventID)
 	checkoutParams := &stripe.CheckoutSessionRetrieveParams{}
 	checkoutParams.AddExpand("line_items")
 	sessionObj, err := api.config.StripeClient.V1CheckoutSessions.Retrieve(ctx, eventID, checkoutParams)
 	if err != nil {
 		return &paymentSuccess{}, err
 	}
-	fmt.Printf("lineItems: %+v\n", *sessionObj.LineItems.Data[0])
-	fmt.Printf("item Price: %+v\n", sessionObj.LineItems.Data[0].Price.ID)
 
 	lineItemList := sessionObj.LineItems.Data
 	userID := sessionObj.Metadata["userID"]

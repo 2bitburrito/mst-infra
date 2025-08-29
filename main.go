@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -27,9 +26,7 @@ func (api *API) setupRouter() *http.ServeMux {
 
 	router.HandleFunc("/healthz/", api.checkHealth)
 
-	router.Handle("POST /api/user", api.apiMiddleware(http.HandlerFunc(api.postUser)))
 	router.Handle("POST /api/cognito-user", api.apiMiddleware(http.HandlerFunc(api.postCognitoUser)))
-	router.Handle("PATCH /api/user/{id}", api.apiMiddleware(http.HandlerFunc(api.patchUser)))
 	router.Handle("GET /api/user/{id}", api.apiMiddleware(http.HandlerFunc(api.getUser)))
 	router.Handle("DELETE /api/user", api.apiMiddleware(http.HandlerFunc(api.deleteUser)))
 	router.Handle("GET /api/user/is-beta/{email}", api.apiMiddleware(http.HandlerFunc(api.checkUserIsBeta)))
@@ -40,11 +37,9 @@ func (api *API) setupRouter() *http.ServeMux {
 
 	router.Handle("POST /api/create-stripe-customer", api.apiMiddleware(http.HandlerFunc(api.createStripeCustomer)))
 	router.Handle("POST /api/create-stripe-checkout", api.apiMiddleware(http.HandlerFunc(api.createStripeCheckout)))
+	router.Handle("GET /api/stripe-order/{session_id}", api.apiMiddleware(http.HandlerFunc(api.getStripeOrder)))
 	router.Handle("POST /api/stripe-webhook", http.HandlerFunc(api.handleStripeWebhook))
 
-	router.Handle("POST /api/license", api.apiMiddleware(http.HandlerFunc(api.postLicense)))
-	router.Handle("PATCH /api/license/{id}", api.apiMiddleware(http.HandlerFunc(api.patchLicense)))
-	router.Handle("GET /api/license/{id}", api.apiMiddleware(http.HandlerFunc(api.getLicense)))
 	router.Handle("POST /api/license/check", api.desktopAppRouterMiddleware(http.HandlerFunc(api.checkLicense)))
 
 	router.Handle("POST /api/create-login-code", api.apiMiddleware(http.HandlerFunc(api.createLoginCode)))
@@ -106,7 +101,7 @@ func main() {
 	var db *sql.DB
 	db, err := sql.Open("postgres", cfg.DB.URL)
 	if err != nil {
-		fmt.Println("error establishing db connection", err.Error())
+		log.Println("error establishing db connection", err.Error())
 		panic(err)
 	}
 

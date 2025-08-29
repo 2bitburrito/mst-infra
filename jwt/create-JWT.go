@@ -21,7 +21,7 @@ func CreateJWT(params Claims) (string, error) {
 		return "", err
 	}
 
-	log.Println("Plan Type:", params.Plan)
+	log.Println("Creating JWT for Plan Type:", params.Plan)
 
 	token = jwt.NewWithClaims(jwt.SigningMethodES256,
 		jwt.MapClaims{

@@ -23,9 +23,3 @@ const (
 	PlanTrial PlanType = "trial"
 	PlanBeta  PlanType = "beta"
 )
-
-type JsonReturn struct {
-	Success bool
-	Error   string
-	Value   *map[string]string
-}

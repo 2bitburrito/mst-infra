@@ -3,9 +3,9 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/2bitburrito/mst-infra/config"
 	database "github.com/2bitburrito/mst-infra/db/sqlc"
@@ -52,13 +52,7 @@ func (api *API) createLoginCode(w http.ResponseWriter, r *http.Request) {
 		"otc":    otc,
 	}
 
-	returnData, err := json.Marshal(returnObj)
-	if err != nil {
-		returnJsonError(w, "error marshalling otc: "+err.Error(), http.StatusNotFound)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-	w.Write(returnData)
+	respondWithJSON(w, http.StatusOK, returnObj)
 }
 
 func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Request) {
@@ -102,10 +96,21 @@ func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	// Pass licence to licence check to get valid licence:
-	newLicence, err := licence.Check(request.MachineID, licences)
+	// TODO: Need to check the user's machine id isn't on another trial account
+	// if so we mark licence as expired and return a not valid response
+	valid, newLicence, err := licence.CheckForValid(request.MachineID, licences)
 	if err != nil {
 		returnJsonError(w, "Couldn't check licence validity "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+	if !valid && newLicence.Expiry.Time.Before(time.Now()) {
+		data := map[string]string{"error": "Your trial Licence has expired"}
+		w.WriteHeader(http.StatusUnauthorized)
+		err := json.NewEncoder(w).Encode(&data)
+		if err != nil {
+			returnJsonError(w, "error encoding json", 500)
+			return
+		}
 	}
 	if newLicence.UserID == uuid.Nil {
 		returnJsonError(w, "No valid Licences Found", http.StatusUnauthorized)
@@ -156,10 +161,5 @@ func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Reques
 	log.Printf("Added jti: %v to db for licence key: %v", jti.UUID, newLicence.LicenceKey)
 
 	data := map[string]string{"jwt": jwtToken}
-	err = json.NewEncoder(w).Encode(data)
-	if err != nil {
-		returnJsonError(w, "internal error encoding json "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	fmt.Println("JWT issued to userID:", *request.UserID)
+	respondWithJSON(w, http.StatusOK, data)
 }

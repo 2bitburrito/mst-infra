@@ -4,20 +4,31 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-
-	"github.com/2bitburrito/mst-infra/utils"
 )
 
-func returnJsonError(w http.ResponseWriter, e string, statusCode int) {
+type JsonErrReturn struct {
+	Error string
+}
+
+func returnJsonError(w http.ResponseWriter, e string, statusCode int, msg ...string) {
+	if statusCode > 499 {
+		log.Printf("Responding with 5XX error: %s", msg)
+	}
 	log.Println(e)
-	rtnMap := utils.JsonReturn{
+	rtnMap := JsonErrReturn{
 		Error: e,
 	}
-	dat, err := json.Marshal(rtnMap)
+	respondWithJSON(w, statusCode, rtnMap)
+}
+
+func respondWithJSON(w http.ResponseWriter, code int, payload any) {
+	w.Header().Set("Content-Type", "application/json")
+	dat, err := json.Marshal(payload)
 	if err != nil {
-		log.Println("error Marshalling error response")
-		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+		log.Printf("Error marshalling JSON: %s", err)
+		w.WriteHeader(500)
+		return
 	}
-	w.WriteHeader(statusCode)
+	w.WriteHeader(code)
 	w.Write(dat)
 }

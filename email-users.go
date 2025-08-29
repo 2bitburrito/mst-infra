@@ -53,8 +53,10 @@ func (api *API) emailSelectBetaUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"emails sent successfully"}`))
+	returnPayload := map[string]string{
+		"status": "emails sent successfully",
+	}
+	respondWithJSON(w, http.StatusOK, returnPayload)
 }
 
 func (api *API) testEmails(w http.ResponseWriter, r *http.Request) {
@@ -83,8 +85,10 @@ func (api *API) testEmails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"emails sent successfully"}`))
+	returnPayload := map[string]string{
+		"status": "emails sent successfully",
+	}
+	respondWithJSON(w, http.StatusOK, returnPayload)
 }
 
 func (api *API) emailAllBetaUsers(w http.ResponseWriter, r *http.Request) {
@@ -100,8 +104,10 @@ func (api *API) emailAllBetaUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"emails sent successfully"}`))
+	returnPayload := map[string]string{
+		"status": "emails sent successfully",
+	}
+	respondWithJSON(w, http.StatusOK, returnPayload)
 }
 
 func (api *API) sendBetaInvites(ctx context.Context, params sendInviteParams) error {

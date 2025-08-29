@@ -84,10 +84,10 @@ func (api *API) insertLatestBinaries(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{
+	returnPayload := map[string]string{
 		"message": "Release data inserted successfully",
-	})
+	}
+	respondWithJSON(w, http.StatusCreated, returnPayload)
 }
 
 func (api *API) getLatestBinaries(w http.ResponseWriter, req *http.Request) {
@@ -117,9 +117,8 @@ func (api *API) getLatestBinaries(w http.ResponseWriter, req *http.Request) {
 		returnJsonError(w, "Error marshalling respoonse", http.StatusInternalServerError)
 		return
 	}
-	log.Println("Successfully retreived Binaries data")
 	log.Println("Latest Version details:")
 	utils.PrintPretty(returnBody)
 
-	w.Write(dat)
+	respondWithJSON(w, http.StatusOK, dat)
 }

@@ -23,15 +23,19 @@ func licenceIsValid(licence database.Licence) bool {
 // This goes through a slice of licences and returns the licence that
 // is either unused (with no machineid) or is least recently used
 // or matches provided machineID
-func Check(machineID string, licences []database.Licence) (database.Licence, error) {
+func CheckForValid(machineID string, licences []database.Licence) (bool, database.Licence, error) {
 	if len(licences) == 0 {
-		return database.Licence{}, errors.New("no licences found in the database matching")
+		return false, database.Licence{}, errors.New("no licences found in the database matching")
 	}
 	var oldestLicence database.Licence
+	var expiredTrial database.Licence
 
 	for _, licence := range licences {
 		// First check whether licence is a plan or within expiry
 		if !licenceIsValid(licence) {
+			if licence.LicenceType.LicenceTypeEnum == "trial" {
+				expiredTrial = licence
+			}
 			continue
 		}
 		// Track the oldest licence:
@@ -43,15 +47,19 @@ func Check(machineID string, licences []database.Licence) (database.Licence, err
 		}
 		// If licence doesn't have a machine ID attached then this is new licence
 		if !licence.MachineID.Valid {
-			return licence, nil
+			return true, licence, nil
 		} else if licence.MachineID.String == machineID {
-			return licence, nil
+			return true, licence, nil
 		}
 	}
 
 	if oldestLicence.UserID == uuid.Nil {
-		return database.Licence{}, errors.New("couldn't find a valid licence")
+		// if only have expired trial
+		if expiredTrial.UserID != uuid.Nil {
+			return false, expiredTrial, nil
+		}
+		return false, database.Licence{}, errors.New("couldn't find a valid licence")
 	}
 	// If nothing found then defaulting back to oldest available licence
-	return oldestLicence, nil
+	return true, oldestLicence, nil
 }

@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"time"
 
 	database "github.com/2bitburrito/mst-infra/db/sqlc"
 	"github.com/google/uuid"
@@ -20,9 +21,6 @@ type User struct {
 	FullName         string    `json:"full_name"`
 	JWT              string    `json:"jwt"`
 }
-type receivedUserRequest struct {
-	Id string `json:"id"`
-}
 
 type CognitoUser struct {
 	Sub                uuid.UUID `json:"sub"`
@@ -31,53 +29,39 @@ type CognitoUser struct {
 	ConfirmationStatus string    `json:"user_status"`
 }
 
+type returnUserPayload struct {
+	Email              string    `json:"email"`
+	CreatedAt          time.Time `json:"createdAt"`
+	NumberOfLicences   int32     `json:"numberOfLicences"`
+	SubscribedToEmails bool      `json:"subscribedToEmails"`
+	FullName           string    `json:"fullName"`
+	ID                 uuid.UUID `json:"id"`
+}
+
 func (api *API) getUser(w http.ResponseWriter, r *http.Request) {
-	var user User
-	var request receivedUserRequest
+	id := r.PathValue("id")
 
-	log.Println("Fetching User")
-
-	data, err := io.ReadAll(r.Body)
-	if err != nil {
-		returnJsonError(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if err := json.Unmarshal(data, &request); err != nil {
-		returnJsonError(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	id := request.Id
-
-	log.Println("Received user ID:", id)
-
-	if len(id) < 1 {
+	if len(id) == 0 {
 		returnJsonError(w, "Invalid id: "+id, http.StatusBadRequest)
 		return
 	}
+	UUIDid := uuid.MustParse(id)
 
-	query := "SELECT email,  number_of_licenses, id FROM users WHERE id=$1"
-	if err := api.db.QueryRow(query, id).Scan(&user.Email, &user.HasLicense, &user.NumberOfLicenses, &user.Id); err != nil {
-		if err == sql.ErrNoRows {
-			returnJsonError(w, "user id not found: "+err.Error(), http.StatusNotFound)
-			return
-		}
-		returnJsonError(w, "error in sql statement: "+err.Error(), http.StatusNotFound)
+	user, err := api.queries.GetUser(r.Context(), UUIDid)
+	if err != nil {
+		returnJsonError(w, "Error while getting user in db "+err.Error(), 500)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(user); err != nil {
-		returnJsonError(w, "failed to encode user data to json: "+err.Error(), http.StatusNotFound)
-		return
+	userPayload := returnUserPayload{
+		ID:                 user.ID,
+		Email:              user.Email,
+		CreatedAt:          user.CreatedAt.Time,
+		NumberOfLicences:   user.NumberOfLicences,
+		SubscribedToEmails: user.SubscribedToEmails,
+		FullName:           user.FullName,
 	}
-}
 
-func (api *API) patchUser(w http.ResponseWriter, r *http.Request) {
-	returnJsonError(w, "Method not yet implemented", http.StatusNotFound)
-}
-
-func (api *API) postUser(w http.ResponseWriter, r *http.Request) {
-	returnJsonError(w, "Method not yet implemented", http.StatusNotFound)
+	respondWithJSON(w, http.StatusOK, userPayload)
 }
 
 // When user is created in cognito we either assign them to a trial licence or Beta licence
