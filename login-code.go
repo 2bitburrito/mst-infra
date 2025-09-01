@@ -117,7 +117,14 @@ func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	expiry := newLicence.Expiry.Time.Unix()
+	const NeverExpiresTimestamp = 253402300799 // 9999-12-31T23:59:59Z
+
+	var expiry int64
+	if newLicence.LicenceType.LicenceTypeEnum == "paid" {
+		expiry = NeverExpiresTimestamp
+	} else {
+		expiry = newLicence.Expiry.Time.Unix()
+	}
 	jti := uuid.NullUUID{
 		Valid: true,
 		UUID:  uuid.New(),
