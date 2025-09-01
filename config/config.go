@@ -57,8 +57,10 @@ func LoadConfig() (*Config, error) {
 	var stripeClient stripe.Client
 	if env == "prod" {
 		stripeClient = *stripe.NewClient(os.Getenv("STRIPE_SECRET_KEY"))
+		stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
 	} else {
 		stripeClient = *stripe.NewClient(os.Getenv("STRIPE_SECRET_KEY_SANDBOX"))
+		stripe.Key = os.Getenv("STRIPE_SECRET_KEY_SANDBOX")
 	}
 	var stripeEndpointSecret string
 	if env == "prod" {

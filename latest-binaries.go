@@ -112,13 +112,6 @@ func (api *API) getLatestBinaries(w http.ResponseWriter, req *http.Request) {
 		URL:           latestRelease.UrlFilename,
 		LatestVersion: latestRelease.ReleaseVersion,
 	}
-	dat, err := json.Marshal(returnBody)
-	if err != nil {
-		returnJsonError(w, "Error marshalling respoonse", http.StatusInternalServerError)
-		return
-	}
-	log.Println("Latest Version details:")
-	utils.PrintPretty(returnBody)
 
-	respondWithJSON(w, http.StatusOK, dat)
+	respondWithJSON(w, http.StatusOK, returnBody)
 }
