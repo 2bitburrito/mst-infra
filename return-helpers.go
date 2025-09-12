@@ -2,8 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/getsentry/sentry-go"
 )
 
 type JsonErrReturn struct {
@@ -14,6 +17,7 @@ func returnJsonError(w http.ResponseWriter, e string, statusCode int, msg ...str
 	if statusCode > 499 {
 		log.Printf("Responding with 5XX error: %s", msg)
 	}
+	sentry.CaptureException(fmt.Errorf("ERROR: %s \nCLIENT MSG: %s", e, msg))
 	log.Println(e)
 	rtnMap := JsonErrReturn{
 		Error: e,

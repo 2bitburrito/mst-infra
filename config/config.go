@@ -8,6 +8,7 @@ import (
 
 	"github.com/2bitburrito/mst-infra/email"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/getsentry/sentry-go"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/stripe/stripe-go/v82"
 )
@@ -40,20 +41,23 @@ func LoadConfig() (*Config, error) {
 	env := Env(os.Getenv("ENV"))
 	ctx := context.Background()
 
+	// Aws:
 	awsCfg, err := config.LoadDefaultConfig(ctx, config.WithRegion("us-west-1"))
 	if err != nil {
 		return nil, err
 	}
-
 	sesClient := email.SesEmailClient{
 		AwsCfg:       awsCfg,
 		SendingEmail: "hello@metasoundtools.com",
 	}
 
+	// DB:
 	dbUrl, err := getDbUrl()
 	if err != nil {
 		return nil, err
 	}
+
+	// Stripe:
 	var stripeClient stripe.Client
 	if env == "prod" {
 		stripeClient = *stripe.NewClient(os.Getenv("STRIPE_SECRET_KEY"))
@@ -68,6 +72,15 @@ func LoadConfig() (*Config, error) {
 	} else {
 		stripeEndpointSecret = os.Getenv("STRIPE_ENDPOINT_SECRET_SANDBOX")
 	}
+
+	// Sentry:
+	err = sentry.Init(sentry.ClientOptions{
+		Dsn: "https://6400eec78a8774c1035e183bb229eaf8@o4508441037307904.ingest.de.sentry.io/4510004123074640",
+	})
+	if err != nil {
+		log.Fatalf("sentry.Init: %s", err)
+	}
+	defer sentry.Flush(2 * time.Second)
 
 	cfg := &Config{
 		Port:   os.Getenv("PORT"),
