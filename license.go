@@ -22,8 +22,6 @@ func (api *API) checkLicense(w http.ResponseWriter, r *http.Request) {
 
 	jwtTokenString := r.Header.Get("Authorization")
 
-	log.Println("Received JWT:", jwtTokenString)
-
 	// Validate JWT
 	claims, err := jwt.ValidateJWT(jwtTokenString)
 	if err != nil {
@@ -37,7 +35,6 @@ func (api *API) checkLicense(w http.ResponseWriter, r *http.Request) {
 		returnJsonError(w, "error getting licence from db in checkLoginCode: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	log.Printf("Retrieved licence for userid:%s / licenceKey:%s", dbLicence.UserID, dbLicence.LicenceKey)
 
 	// If db doesn't have jit then insert it and the JIT:
 	if !dbLicence.Jti.Valid {
@@ -84,4 +81,23 @@ func (api *API) checkLicense(w http.ResponseWriter, r *http.Request) {
 	if err := api.queries.UpdateLicenceUsedTime(context.Background(), dbLicence.LicenceKey); err != nil {
 		log.Printf("Error while setting last_seen_at in licences for %s\n %v\n", dbLicence.LicenceKey, err)
 	}
+}
+
+func (api *API) removeMachineFromLicence(w http.ResponseWriter, r *http.Request) {
+	jwtTokenString := r.Header.Get("Authorization")
+
+	log.Println("Received JWT:", jwtTokenString)
+
+	// Validate JWT
+	claims, err := jwt.ValidateJWT(jwtTokenString)
+	if err != nil {
+		returnJsonError(w, "jwt invalid: "+err.Error(), http.StatusUnauthorized, "There was an error while trying to validate jwt")
+		return
+	}
+	err = api.queries.RemoveMachineID(r.Context(), claims.LicenceKey)
+	if err != nil {
+		returnJsonError(w, err.Error(), http.StatusInternalServerError, "Error while removing machine from licence row")
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }

@@ -41,6 +41,7 @@ func (api *API) setupRouter() *http.ServeMux {
 	router.Handle("POST /api/stripe-webhook", http.HandlerFunc(api.handleStripeWebhook))
 
 	router.Handle("POST /api/license/check", api.desktopAppRouterMiddleware(http.HandlerFunc(api.checkLicense)))
+	router.Handle("POST /api/licence/remove-machine", api.desktopAppRouterMiddleware(http.HandlerFunc(api.removeMachineFromLicence)))
 
 	router.Handle("POST /api/create-login-code", api.apiMiddleware(http.HandlerFunc(api.createLoginCode)))
 	router.Handle("POST /api/check-login-code", http.HandlerFunc(api.checkLoginCodeAndCreateJWT))
