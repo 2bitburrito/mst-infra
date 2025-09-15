@@ -66,6 +66,7 @@ func (api *API) getUser(w http.ResponseWriter, r *http.Request) {
 
 // When user is created in cognito we either assign them to a trial licence or Beta licence
 func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
 	var cognitoUser CognitoUser
 
 	data, err := io.ReadAll(r.Body)
@@ -80,6 +81,7 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Println("Recieved Cognito Request for:", cognitoUser.Email)
+	log.Printf("Time to unmarshal: %v\n", time.Since(start))
 
 	nonNullEmail := sql.NullString{
 		String: cognitoUser.Email,
@@ -95,19 +97,19 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
+	log.Printf("Time to check Beta Licences: %v\n", time.Since(start))
 	args := database.InsertUserParams{
 		ID:                 cognitoUser.Sub,
 		Email:              cognitoUser.Email,
 		FullName:           cognitoUser.Name,
-		SubscribedToEmails: false,
+		SubscribedToEmails: true,
 	}
-
 	log.Println("Inserting user: ", args)
 	if err := api.queries.InsertUser(r.Context(), args); err != nil {
 		returnJsonError(w, "error in while writing cognito user to db: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+	log.Printf("Time to insert user: %v\n", time.Since(start))
 
 	if betaLicence.Email.Valid {
 		// If user is in beta list:
@@ -139,6 +141,7 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Println("Added new Trial Licence: ", licenceRow)
+		log.Printf("Time to insert Trial Licence: %v\n", time.Since(start))
 	}
 	w.WriteHeader(http.StatusOK)
 }
