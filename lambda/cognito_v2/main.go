@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
 )
@@ -55,6 +57,7 @@ func handleRequest(ctx context.Context, event CognitoEvent) (CognitoEvent, error
 }
 
 func confirmSignup(ctx context.Context, event CognitoEvent, api *API) (CognitoEvent, error) {
+	start := time.Now()
 	url := fmt.Sprintf("%s/api/cognito-user", api.URL)
 	user := event.Request.UserAttributes
 	body, err := json.Marshal(user)
@@ -80,6 +83,7 @@ func confirmSignup(ctx context.Context, event CognitoEvent, api *API) (CognitoEv
 		defer resp.Body.Close()
 		return CognitoEvent{}, fmt.Errorf("%s", serverErr.Error)
 	}
+	log.Printf("Execution time: %v", time.Since(start))
 	return event, nil
 }
 
