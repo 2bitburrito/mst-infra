@@ -40,15 +40,15 @@ func (api *API) createLoginCode(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	// Verify the jwt with cognito
-	verified, err := jwt.VerifyCognitoJWT(cfg.CognitoPoolID, user.Id.String(), user.JWT)
+	verified, err := jwt.VerifyCognitoJWT(cfg.CognitoPoolID, user.ID.String(), user.JWT)
 	if err != nil || !verified {
 		returnJsonError(w, "error in Jwt Verify "+err.Error(), http.StatusNotFound)
 		return
 	}
 
-	otc := api.verificationStore.New(user.Id)
+	otc := api.verificationStore.New(user.ID)
 	returnObj := map[string]string{
-		"userId": user.Id.String(),
+		"userId": user.ID.String(),
 		"otc":    otc,
 	}
 
@@ -68,13 +68,13 @@ func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Reques
 
 	if request.UserID == nil {
 		// Get Token from store from OTC
-		var userId uuid.UUID
-		userId, token, err = api.verificationStore.GetFromOTC(request.OneTimeToken)
+		var userID uuid.UUID
+		userID, token, err = api.verificationStore.GetFromOTC(request.OneTimeToken)
 		if err != nil {
 			returnJsonError(w, "error getting otc from store: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-		request.UserID = &userId
+		request.UserID = &userID
 	} else {
 		// Get Token from store matching userID:
 		token, err = api.verificationStore.Get(*request.UserID)

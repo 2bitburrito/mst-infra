@@ -14,7 +14,7 @@ import (
 )
 
 type User struct {
-	Id               uuid.UUID `json:"id"`
+	ID               uuid.UUID `json:"id"`
 	Email            string    `json:"email"`
 	HasLicense       bool      `json:"has_license"`
 	NumberOfLicenses int       `json:"number_of_licenses"`
@@ -66,7 +66,6 @@ func (api *API) getUser(w http.ResponseWriter, r *http.Request) {
 
 // When user is created in cognito we either assign them to a trial licence or Beta licence
 func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
-	start := time.Now()
 	var cognitoUser CognitoUser
 
 	data, err := io.ReadAll(r.Body)
@@ -81,23 +80,12 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Println("Recieved Cognito Request for:", cognitoUser.Email)
-	log.Printf("Time to unmarshal: %v\n", time.Since(start))
 
 	nonNullEmail := sql.NullString{
 		String: cognitoUser.Email,
 		Valid:  true,
 	}
 
-	betaLicence, err := api.queries.GetBetaEmail(r.Context(), nonNullEmail)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			betaLicence.Email.Valid = false
-		} else {
-			returnJsonError(w, "error retrieving email from beta list: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-	log.Printf("Time to check Beta Licences: %v\n", time.Since(start))
 	args := database.InsertUserParams{
 		ID:                 cognitoUser.Sub,
 		Email:              cognitoUser.Email,
@@ -109,40 +97,20 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 		returnJsonError(w, "error in while writing cognito user to db: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	log.Printf("Time to insert user: %v\n", time.Since(start))
 
-	if betaLicence.Email.Valid {
-		// If user is in beta list:
-		emailNonNull := sql.NullString{
-			Valid:  true,
-			String: args.Email,
-		}
-		err := api.queries.SetBetaRowToSeen(r.Context(), emailNonNull)
-		if err != nil {
-			log.Println("error setting beta row to seen: ", err.Error())
-		}
-
-		// add beta licence:
-		_, err = api.queries.AddBetaLicence(r.Context(), args.ID)
-		if err != nil {
-			returnJsonError(w, "error while setting new beta licence:"+err.Error(), http.StatusInternalServerError)
-		}
-	} else {
-		// Add a trial licence
-		licenceRowArgs := database.AddTrialLicenceParams{
-			UserID: cognitoUser.Sub,
-			MachineID: sql.NullString{
-				Valid: false,
-			},
-		}
-		licenceRow, err := api.queries.AddTrialLicence(r.Context(), licenceRowArgs)
-		if err != nil {
-			returnJsonError(w, "error while adding trial user to table: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-		log.Println("Added new Trial Licence: ", licenceRow)
-		log.Printf("Time to insert Trial Licence: %v\n", time.Since(start))
+	// Add a trial licence
+	licenceRowArgs := database.AddTrialLicenceParams{
+		UserID: cognitoUser.Sub,
+		MachineID: sql.NullString{
+			Valid: false,
+		},
 	}
+	licenceRow, err := api.queries.AddTrialLicence(r.Context(), licenceRowArgs)
+	if err != nil {
+		returnJsonError(w, "error while adding trial user to table: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	log.Println("Added new Trial Licence: ", licenceRow)
 	w.WriteHeader(http.StatusOK)
 }
 
