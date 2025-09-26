@@ -102,7 +102,8 @@ func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Reques
 	// Pass licence to licence check to get valid licence:
 	valid, newLicence, err := licence.CheckForValid(request.MachineID, licences)
 	if err != nil {
-		returnJsonError(w, "Couldn't check licence validity "+err.Error(), http.StatusInternalServerError)
+		returnJsonError(w, "Couldn't check licence validity "+err.Error(), http.StatusInternalServerError,
+			"There were no valid licences found! Please reach out to support if you believe this is a mistake.")
 		return
 	}
 	if !valid && newLicence.Expiry.Time.Before(time.Now()) {
@@ -133,6 +134,7 @@ func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Reques
 		if machineHasHadPreviousTrial {
 			data := map[string]string{"error": "This machine has already been used in a free trial"}
 			respondWithJSON(w, http.StatusUnauthorized, data)
+			return
 		}
 		go func() {
 			err := api.queries.AddMachineID(context.Background(), database.AddMachineIDParams{

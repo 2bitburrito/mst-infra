@@ -10,7 +10,7 @@ import (
 )
 
 type JsonErrReturn struct {
-	Error string
+	Error string `json:"error"`
 }
 
 func returnJsonError(w http.ResponseWriter, e string, statusCode int, msg ...string) {
