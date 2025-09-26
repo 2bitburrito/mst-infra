@@ -81,11 +81,6 @@ func (api *API) postCognitoUser(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Println("Recieved Cognito Request for:", cognitoUser.Email)
 
-	nonNullEmail := sql.NullString{
-		String: cognitoUser.Email,
-		Valid:  true,
-	}
-
 	args := database.InsertUserParams{
 		ID:                 cognitoUser.Sub,
 		Email:              cognitoUser.Email,

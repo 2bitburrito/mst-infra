@@ -130,3 +130,23 @@ VALUES (
 UPDATE users
 SET number_of_licences = number_of_licences + $2
 WHERE id = $1;
+
+-- name: MachineIDIsUsed :one
+SELECT EXISTS(
+    SELECT * FROM trial_machines
+    WHERE machine_id = $1
+    AND claimed_at <= now() - INTERVAL '14 days'
+);
+
+-- name: AddMachineID :exec
+INSERT INTO trial_machines(
+  machine_id, user_id
+)VALUES(
+  $1, $2
+);
+
+-- name: HasParticipatedInBeta :one
+SELECT EXISTS(
+  SELECT * FROM beta_licences
+  WHERE email = $1 AND seen = 'TRUE'
+);

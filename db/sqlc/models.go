@@ -100,6 +100,12 @@ type StripeEvent struct {
 	ProcessedAt sql.NullTime
 }
 
+type TrialMachine struct {
+	MachineID string
+	UserID    uuid.NullUUID
+	ClaimedAt sql.NullTime
+}
+
 type User struct {
 	Email              string
 	CreatedAt          sql.NullTime

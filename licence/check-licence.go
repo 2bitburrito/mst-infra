@@ -8,6 +8,9 @@ import (
 	"github.com/google/uuid"
 )
 
+// licenceisValid is a helper method to check whether
+// the licence is: paid or will expire later
+// than now
 func licenceIsValid(licence database.Licence) bool {
 	now := time.Now()
 
@@ -20,7 +23,7 @@ func licenceIsValid(licence database.Licence) bool {
 	return false
 }
 
-// This goes through a slice of licences and returns the licence that
+// CheckForValid goes through a slice of licences and returns the licence that
 // is either unused (with no machineid) or is least recently used
 // or matches provided machineID
 func CheckForValid(machineID string, licences []database.Licence) (bool, database.Licence, error) {

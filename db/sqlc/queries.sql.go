@@ -30,6 +30,24 @@ func (q *Queries) AddBetaLicence(ctx context.Context, userID uuid.UUID) (AddBeta
 	return i, err
 }
 
+const addMachineID = `-- name: AddMachineID :exec
+INSERT INTO trial_machines(
+  machine_id, user_id
+)VALUES(
+  $1, $2
+)
+`
+
+type AddMachineIDParams struct {
+	MachineID string
+	UserID    uuid.NullUUID
+}
+
+func (q *Queries) AddMachineID(ctx context.Context, arg AddMachineIDParams) error {
+	_, err := q.db.ExecContext(ctx, addMachineID, arg.MachineID, arg.UserID)
+	return err
+}
+
 const addNewReleaseData = `-- name: AddNewReleaseData :exec
 INSERT INTO app_releases (
   platform, 
@@ -356,6 +374,20 @@ func (q *Queries) GetUserFromEmail(ctx context.Context, email string) (User, err
 	return i, err
 }
 
+const hasParticipatedInBeta = `-- name: HasParticipatedInBeta :one
+SELECT EXISTS(
+  SELECT email, seen, name FROM beta_licences
+  WHERE email = $1 AND seen = 'TRUE'
+)
+`
+
+func (q *Queries) HasParticipatedInBeta(ctx context.Context, email sql.NullString) (bool, error) {
+	row := q.db.QueryRowContext(ctx, hasParticipatedInBeta, email)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const incrementLicences = `-- name: IncrementLicences :exec
 UPDATE users
 SET number_of_licences = number_of_licences + $2
@@ -393,6 +425,21 @@ func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) error {
 		arg.SubscribedToEmails,
 	)
 	return err
+}
+
+const machineIDIsUsed = `-- name: MachineIDIsUsed :one
+SELECT EXISTS(
+    SELECT machine_id, user_id, claimed_at FROM trial_machines
+    WHERE machine_id = $1
+    AND claimed_at <= now() - INTERVAL '14 days'
+)
+`
+
+func (q *Queries) MachineIDIsUsed(ctx context.Context, machineID string) (bool, error) {
+	row := q.db.QueryRowContext(ctx, machineIDIsUsed, machineID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const removeMachineID = `-- name: RemoveMachineID :exec

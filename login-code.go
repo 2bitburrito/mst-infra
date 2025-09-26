@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -12,6 +14,7 @@ import (
 	"github.com/2bitburrito/mst-infra/jwt"
 	"github.com/2bitburrito/mst-infra/licence"
 	"github.com/2bitburrito/mst-infra/utils"
+	"github.com/getsentry/sentry-go"
 	"github.com/google/uuid"
 )
 
@@ -95,22 +98,17 @@ func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Reques
 		returnJsonError(w, "error in select statement: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	// Pass licence to licence check to get valid licence:
-	// TODO: Need to check the user's machine id isn't on another trial account
-	// if so we mark licence as expired and return a not valid response
 	valid, newLicence, err := licence.CheckForValid(request.MachineID, licences)
 	if err != nil {
 		returnJsonError(w, "Couldn't check licence validity "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if !valid && newLicence.Expiry.Time.Before(time.Now()) {
-		data := map[string]string{"error": "Your trial Licence has expired"}
-		w.WriteHeader(http.StatusUnauthorized)
-		err := json.NewEncoder(w).Encode(&data)
-		if err != nil {
-			returnJsonError(w, "error encoding json", 500)
-			return
-		}
+		data := map[string]string{"error": "Your licence has expired"}
+		respondWithJSON(w, http.StatusUnauthorized, data)
+		return
 	}
 	if newLicence.UserID == uuid.Nil {
 		returnJsonError(w, "No valid Licences Found", http.StatusUnauthorized)
@@ -125,6 +123,33 @@ func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Reques
 	} else {
 		expiry = newLicence.Expiry.Time.Unix()
 	}
+
+	// If machine as been seen and is trial deny a new trial licence:
+	if newLicence.LicenceType.LicenceTypeEnum == "trial" {
+		machineHasHadPreviousTrial, err := api.queries.MachineIDIsUsed(r.Context(), request.MachineID)
+		if err != nil {
+			log.Println("error checking whether machine has used trial before")
+		}
+		if machineHasHadPreviousTrial {
+			data := map[string]string{"error": "This machine has already been used in a free trial"}
+			respondWithJSON(w, http.StatusUnauthorized, data)
+		}
+		go func() {
+			err := api.queries.AddMachineID(context.Background(), database.AddMachineIDParams{
+				MachineID: request.MachineID,
+				UserID: uuid.NullUUID{
+					Valid: true,
+					UUID:  *request.UserID,
+				},
+			})
+			if err != nil {
+				rtnErr := fmt.Errorf("error while setting machine id into trial machines table : %w", err)
+				log.Println(rtnErr)
+				sentry.CaptureException(rtnErr)
+			}
+		}()
+	}
+
 	jti := uuid.NullUUID{
 		Valid: true,
 		UUID:  uuid.New(),
@@ -135,7 +160,7 @@ func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Reques
 		Jti:        jti,
 	})
 	if err != nil {
-		returnJsonError(w, "error inserting new machine ID"+err.Error(), http.StatusInternalServerError)
+		returnJsonError(w, "error inserting new machine ID"+err.Error(), http.StatusInternalServerError, "There was an error while adding your licence into the Database. Please contact support if this persists.")
 		return
 	}
 
