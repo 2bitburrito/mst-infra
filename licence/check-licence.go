@@ -16,8 +16,7 @@ func licenceIsValid(licence database.Licence) bool {
 
 	if licence.LicenceType.LicenceTypeEnum == "paid" {
 		return true
-	}
-	if licence.Expiry.Time.After(now) {
+	} else if licence.Expiry.Time.After(now) {
 		return true
 	}
 	return false
@@ -30,6 +29,13 @@ func CheckForValid(machineID string, licences []database.Licence) (bool, databas
 	if len(licences) == 0 {
 		return false, database.Licence{}, errors.New("no licences found in the database matching")
 	}
+	userHasPaidLicence := false
+	for _, licence := range licences {
+		if licence.LicenceType.LicenceTypeEnum == "paid" {
+			userHasPaidLicence = true
+		}
+	}
+
 	var oldestLicence database.Licence
 	var expiredTrial database.Licence
 
@@ -41,6 +47,11 @@ func CheckForValid(machineID string, licences []database.Licence) (bool, databas
 			}
 			continue
 		}
+		if licence.LicenceType.LicenceTypeEnum == "trial" &&
+			userHasPaidLicence {
+			continue
+		}
+
 		// Track the oldest licence:
 		if !oldestLicence.LastUsedAt.Valid {
 			oldestLicence = licence

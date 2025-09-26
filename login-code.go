@@ -99,6 +99,7 @@ func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	fmt.Printf("All Licences: %+v\n", licences)
 	// Pass licence to licence check to get valid licence:
 	valid, newLicence, err := licence.CheckForValid(request.MachineID, licences)
 	if err != nil {
@@ -116,6 +117,7 @@ func (api *API) checkLoginCodeAndCreateJWT(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	fmt.Printf("Fetched licence: %+v\n", newLicence)
 	const NeverExpiresTimestamp = 253402300799 // 9999-12-31T23:59:59Z
 
 	var expiry int64
