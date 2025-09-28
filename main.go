@@ -34,6 +34,7 @@ func (api *API) setupRouter() *http.ServeMux {
 	router.Handle("PUT /api/email-all-beta-users", api.apiMiddleware(http.HandlerFunc(api.emailAllBetaUsers)))
 	router.Handle("PUT /api/email-select-beta-users", api.apiMiddleware(http.HandlerFunc(api.emailSelectBetaUsers)))
 	router.Handle("PUT /api/test-email-beta-users", api.apiMiddleware(http.HandlerFunc(api.testEmails)))
+	router.Handle("POST /api/cron-email-expired-licences", api.apiMiddleware(http.HandlerFunc(api.cronEmailExpiredLicences)))
 
 	router.Handle("POST /api/create-stripe-customer", api.apiMiddleware(http.HandlerFunc(api.createStripeCustomer)))
 	router.Handle("POST /api/create-stripe-checkout", api.apiMiddleware(http.HandlerFunc(api.createStripeCheckout)))

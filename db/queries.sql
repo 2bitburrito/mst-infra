@@ -150,3 +150,12 @@ SELECT EXISTS(
   SELECT * FROM beta_licences
   WHERE email = $1 AND seen = 'TRUE'
 );
+
+-- name: GetExpiredLicences :many
+SELECT l.*, u.* FROM licences l
+  JOIN users u ON l.user_id = u.id
+  WHERE l.expiry > now();
+
+-- name: GetSentEmailsForUser :many
+SELECT * FROM sent_emails
+  WHERE user_id = $1;

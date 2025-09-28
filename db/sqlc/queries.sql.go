@@ -270,6 +270,69 @@ func (q *Queries) GetBetaEmail(ctx context.Context, email sql.NullString) (BetaL
 	return i, err
 }
 
+const getExpiredLicences = `-- name: GetExpiredLicences :many
+SELECT l.licence_key, l.user_id, l.machine_id, l.created_at, l.last_used_at, l.licence_type, l.expiry, l.jti, u.email, u.created_at, u.number_of_licences, u.subscribed_to_emails, u.full_name, u.id, u.stripe_id FROM licences l
+  JOIN users u ON l.user_id = u.id
+  WHERE l.expiry > now()
+`
+
+type GetExpiredLicencesRow struct {
+	LicenceKey         string
+	UserID             uuid.UUID
+	MachineID          sql.NullString
+	CreatedAt          sql.NullTime
+	LastUsedAt         sql.NullTime
+	LicenceType        NullLicenceTypeEnum
+	Expiry             sql.NullTime
+	Jti                uuid.NullUUID
+	Email              string
+	CreatedAt_2        sql.NullTime
+	NumberOfLicences   int32
+	SubscribedToEmails bool
+	FullName           string
+	ID                 uuid.UUID
+	StripeID           sql.NullString
+}
+
+func (q *Queries) GetExpiredLicences(ctx context.Context) ([]GetExpiredLicencesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getExpiredLicences)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetExpiredLicencesRow
+	for rows.Next() {
+		var i GetExpiredLicencesRow
+		if err := rows.Scan(
+			&i.LicenceKey,
+			&i.UserID,
+			&i.MachineID,
+			&i.CreatedAt,
+			&i.LastUsedAt,
+			&i.LicenceType,
+			&i.Expiry,
+			&i.Jti,
+			&i.Email,
+			&i.CreatedAt_2,
+			&i.NumberOfLicences,
+			&i.SubscribedToEmails,
+			&i.FullName,
+			&i.ID,
+			&i.StripeID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getLatestBinary = `-- name: GetLatestBinary :one
 SELECT id, platform, architecture, release_version, url_filename, file_size, release_date, is_latest, release_notes, created_at FROM app_releases
 WHERE is_latest = TRUE
@@ -332,6 +395,42 @@ func (q *Queries) GetNameFromBetaList(ctx context.Context, email sql.NullString)
 	var name sql.NullString
 	err := row.Scan(&name)
 	return name, err
+}
+
+const getSentEmailsForUser = `-- name: GetSentEmailsForUser :many
+SELECT id, user_id, email_type, recipient_email, sent_at, status, error_message FROM sent_emails
+  WHERE user_id = $1
+`
+
+func (q *Queries) GetSentEmailsForUser(ctx context.Context, userID uuid.NullUUID) ([]SentEmail, error) {
+	rows, err := q.db.QueryContext(ctx, getSentEmailsForUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SentEmail
+	for rows.Next() {
+		var i SentEmail
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.EmailType,
+			&i.RecipientEmail,
+			&i.SentAt,
+			&i.Status,
+			&i.ErrorMessage,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getUser = `-- name: GetUser :one

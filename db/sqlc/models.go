@@ -12,6 +12,48 @@ import (
 	"github.com/google/uuid"
 )
 
+type EmailTypes string
+
+const (
+	EmailTypesMarketingInvite    EmailTypes = "marketing_invite"
+	EmailTypesTrialLicenceExpiry EmailTypes = "trial_licence_expiry"
+)
+
+func (e *EmailTypes) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = EmailTypes(s)
+	case string:
+		*e = EmailTypes(s)
+	default:
+		return fmt.Errorf("unsupported scan type for EmailTypes: %T", src)
+	}
+	return nil
+}
+
+type NullEmailTypes struct {
+	EmailTypes EmailTypes
+	Valid      bool // Valid is true if EmailTypes is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullEmailTypes) Scan(value interface{}) error {
+	if value == nil {
+		ns.EmailTypes, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.EmailTypes.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullEmailTypes) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.EmailTypes), nil
+}
+
 type LicenceTypeEnum string
 
 const (
@@ -92,6 +134,16 @@ type Licence struct {
 	LicenceType NullLicenceTypeEnum
 	Expiry      sql.NullTime
 	Jti         uuid.NullUUID
+}
+
+type SentEmail struct {
+	ID             uuid.UUID
+	UserID         uuid.NullUUID
+	EmailType      EmailTypes
+	RecipientEmail string
+	SentAt         sql.NullTime
+	Status         string
+	ErrorMessage   sql.NullString
 }
 
 type StripeEvent struct {

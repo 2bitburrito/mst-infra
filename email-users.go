@@ -173,3 +173,18 @@ func (api *API) sendBetaInvites(ctx context.Context, params sendInviteParams) er
 	}
 	return nil
 }
+
+// A recurring cron job that checks for expired licences and
+// sends a email to each user who hasn't purchased yet
+func (api *API) cronEmailExpiredLicences(w http.ResponseWriter, r *http.Request) {
+	expiredLicences, err := api.queries.GetExpiredLicences(r.Context())
+	if err != nil {
+		returnJsonError(w, "error while querying db for expired licences: "+err.Error(), http.StatusInternalServerError, "There was an internal error while querying the db for expired licences")
+		return
+	}
+	for _, licence := range expiredLicences {
+		if licence.NumberOfLicences > 0 {
+			continue
+		}
+	}
+}
