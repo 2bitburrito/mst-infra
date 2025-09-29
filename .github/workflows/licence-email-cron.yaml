@@ -14,4 +14,4 @@ jobs:
         run: |
           curl  -X POST "${{secrets.API_URL}}cron-email-expired-licences" \
           -H "Content-Type: application/json" \
-          -H "X-API-Key: ${{secrets.X-API-Key}}"
+          -H "X-API-Key: ${{secrets.X-API-KEY}}"
