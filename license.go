@@ -25,7 +25,11 @@ func (api *API) checkLicense(w http.ResponseWriter, r *http.Request) {
 	// Validate JWT
 	claims, err := jwt.ValidateJWT(jwtTokenString)
 	if err != nil {
-		returnJsonError(w, "jwt invalid: "+err.Error(), http.StatusUnauthorized)
+		respondWithJSON(w, http.StatusUnauthorized, checkLicenceResponse{
+			Message: "Your licence has expired.",
+			Action:  "logout",
+		},
+		)
 		return
 	}
 
