@@ -13,6 +13,7 @@ type GenericEmailData struct {
 	CtaText        *string
 	CtaLink        *string
 	SecondaryLink  *string
+	SecondaryText  *string
 	ClosingMessage template.HTML
 	PreferencesUrl *string
 	ExtraTags      bool

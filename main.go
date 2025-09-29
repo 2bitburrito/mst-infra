@@ -69,6 +69,7 @@ func (api *API) desktopAppRouterMiddleware(next http.Handler) http.Handler {
 func (api *API) apiMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		allowedOrigins := map[string]bool{
+			"http://localhost":           true,
 			"http://localhost:3000":      true,
 			"https://metasoundtools.com": true,
 		}

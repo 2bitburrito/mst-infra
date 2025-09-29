@@ -154,8 +154,18 @@ SELECT EXISTS(
 -- name: GetExpiredLicences :many
 SELECT l.*, u.* FROM licences l
   JOIN users u ON l.user_id = u.id
-  WHERE l.expiry > now();
+  WHERE l.expiry < now();
 
--- name: GetSentEmailsForUser :many
+-- name: GetSentTrialLicenceExpiryEmails :many
 SELECT * FROM sent_emails
-  WHERE user_id = $1;
+  WHERE user_id = $1
+  AND email_type = 'trial_licence_expiry';
+
+-- name: SendEmail :exec
+INSERT INTO sent_emails(
+  user_id,
+  email_type,
+  recipient_email,
+  status,
+  error_message
+) VALUES ($1, $2, $3, $4, $5);

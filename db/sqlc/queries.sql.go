@@ -273,7 +273,7 @@ func (q *Queries) GetBetaEmail(ctx context.Context, email sql.NullString) (BetaL
 const getExpiredLicences = `-- name: GetExpiredLicences :many
 SELECT l.licence_key, l.user_id, l.machine_id, l.created_at, l.last_used_at, l.licence_type, l.expiry, l.jti, u.email, u.created_at, u.number_of_licences, u.subscribed_to_emails, u.full_name, u.id, u.stripe_id FROM licences l
   JOIN users u ON l.user_id = u.id
-  WHERE l.expiry > now()
+  WHERE l.expiry < now()
 `
 
 type GetExpiredLicencesRow struct {
@@ -397,13 +397,14 @@ func (q *Queries) GetNameFromBetaList(ctx context.Context, email sql.NullString)
 	return name, err
 }
 
-const getSentEmailsForUser = `-- name: GetSentEmailsForUser :many
+const getSentTrialLicenceExpiryEmails = `-- name: GetSentTrialLicenceExpiryEmails :many
 SELECT id, user_id, email_type, recipient_email, sent_at, status, error_message FROM sent_emails
   WHERE user_id = $1
+  AND email_type = 'trial_licence_expiry'
 `
 
-func (q *Queries) GetSentEmailsForUser(ctx context.Context, userID uuid.NullUUID) ([]SentEmail, error) {
-	rows, err := q.db.QueryContext(ctx, getSentEmailsForUser, userID)
+func (q *Queries) GetSentTrialLicenceExpiryEmails(ctx context.Context, userID uuid.NullUUID) ([]SentEmail, error) {
+	rows, err := q.db.QueryContext(ctx, getSentTrialLicenceExpiryEmails, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -549,6 +550,35 @@ WHERE licence_key = $1
 
 func (q *Queries) RemoveMachineID(ctx context.Context, licenceKey string) error {
 	_, err := q.db.ExecContext(ctx, removeMachineID, licenceKey)
+	return err
+}
+
+const sendEmail = `-- name: SendEmail :exec
+INSERT INTO sent_emails(
+  user_id,
+  email_type,
+  recipient_email,
+  status,
+  error_message
+) VALUES ($1, $2, $3, $4, $5)
+`
+
+type SendEmailParams struct {
+	UserID         uuid.NullUUID
+	EmailType      EmailTypes
+	RecipientEmail string
+	Status         string
+	ErrorMessage   sql.NullString
+}
+
+func (q *Queries) SendEmail(ctx context.Context, arg SendEmailParams) error {
+	_, err := q.db.ExecContext(ctx, sendEmail,
+		arg.UserID,
+		arg.EmailType,
+		arg.RecipientEmail,
+		arg.Status,
+		arg.ErrorMessage,
+	)
 	return err
 }
 

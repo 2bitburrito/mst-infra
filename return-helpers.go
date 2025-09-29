@@ -13,6 +13,12 @@ type JsonErrReturn struct {
 	Error string `json:"error"`
 }
 
+func logError(message string, e error, extraData ...any) {
+	err := fmt.Errorf("ERROR: %v - %w \nDATA: %+v", message, e, extraData)
+	sentry.CaptureException(err)
+	log.Println(err)
+}
+
 func returnJsonError(w http.ResponseWriter, e string, statusCode int, msg ...string) {
 	if statusCode > 499 {
 		log.Printf("Responding with 5XX error: %s", msg)

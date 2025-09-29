@@ -1,0 +1,17 @@
+name: "Email Expired Licence Users"
+on:
+  schedule:
+    - cron: "0 12 * * *"
+
+jobs:
+  cron_job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Make curl request to backend
+        run: |
+          curl  -X POST "http://localhost:8080/api/cron-email-expired-licences" \
+          -H "Content-Type: application/json" \
+          -H "X-API-Key: {{secrets.X-API-Key}}"

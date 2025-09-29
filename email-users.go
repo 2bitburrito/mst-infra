@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"log"
@@ -16,6 +17,7 @@ import (
 	"github.com/2bitburrito/mst-infra/email"
 	"github.com/2bitburrito/mst-infra/email/html"
 	"github.com/2bitburrito/mst-infra/utils"
+	"github.com/google/uuid"
 )
 
 type emailBetaUsersRequest struct {
@@ -155,7 +157,11 @@ func (api *API) sendBetaInvites(ctx context.Context, params sendInviteParams) er
 				Subject:          "Meta Sound Tools Beta Program",
 				FormattedHtml:    htmlEmail,
 			}
-			api.config.EmailClient.SendEmail(params)
+			err = api.config.EmailClient.SendEmail(params)
+			if err != nil {
+				errCh <- fmt.Errorf("error sending email to: %v, %w ", row.Email.String, err)
+			}
+
 			log.Printf("Successfully sent email to: %s", row.Email.String)
 		}(row)
 	}
@@ -174,6 +180,9 @@ func (api *API) sendBetaInvites(ctx context.Context, params sendInviteParams) er
 	return nil
 }
 
+//go:embed email/messages/trial-expiry.html
+var trialExpiryMessage string
+
 // A recurring cron job that checks for expired licences and
 // sends a email to each user who hasn't purchased yet
 func (api *API) cronEmailExpiredLicences(w http.ResponseWriter, r *http.Request) {
@@ -183,8 +192,79 @@ func (api *API) cronEmailExpiredLicences(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	for _, licence := range expiredLicences {
-		if licence.NumberOfLicences > 0 {
+		if licence.NumberOfLicences > 0 ||
+			licence.LicenceType.LicenceTypeEnum != "trial" ||
+			!licence.SubscribedToEmails {
 			continue
 		}
+		sentEmails, err := api.queries.GetSentTrialLicenceExpiryEmails(
+			r.Context(),
+			uuid.NullUUID{
+				Valid: true,
+				UUID:  licence.UserID,
+			})
+		if err != nil {
+			if !errors.Is(err, sql.ErrNoRows) {
+				logError(fmt.Sprintf("error getting sent emails for user: %v", licence.UserID), err)
+				continue
+			}
+		}
+		hasReceivedTrialEmail := false
+		for _, email := range sentEmails {
+			if email.EmailType == "trial_licence_expiry" {
+				hasReceivedTrialEmail = true
+			}
+		}
+		if hasReceivedTrialEmail {
+			continue
+		}
+		// Send thankyou/CTA email:
+		emailData := html.GenericEmailData{
+			HighlightWord:  utils.StrPtr("Thanks!"),
+			FirstName:      utils.StrPtr(licence.FullName),
+			MainMessage:    template.HTML(trialExpiryMessage),
+			CtaLink:        utils.StrPtr("https://metasoundtools.com/"),
+			CtaText:        utils.StrPtr("Purchase Now"),
+			SecondaryLink:  utils.StrPtr("mailto:hello@metasoundtools.com"),
+			SecondaryText:  utils.StrPtr("Reach Out To Us"),
+			PreferencesUrl: utils.StrPtr("https://metasoundtools.com/profile"),
+			ExtraTags:      true,
+		}
+		genericTemplateReader := bytes.NewReader(genericTemplate)
+		htmlEmail, err := html.TemplateEmail(genericTemplateReader, emailData)
+		if err != nil {
+			logError(fmt.Sprintf("failed to format html for: %v", licence.Email), err)
+			continue
+		}
+		params := email.SendEmailParams{
+			ReceivingAddress: licence.Email,
+			SendingAddress:   "Hugh <hugh@metasoundtools.com>",
+			Subject:          "Meta Sound Tools Beta Program",
+			FormattedHtml:    htmlEmail,
+		}
+		err = api.config.EmailClient.SendEmail(params)
+		errorMsg := ""
+		if err != nil {
+			logError(fmt.Sprintf("couldn't send email to: %v", licence.Email), err)
+			errorMsg = err.Error()
+		}
+		err = api.queries.SendEmail(r.Context(), database.SendEmailParams{
+			UserID: uuid.NullUUID{
+				Valid: true,
+				UUID:  licence.UserID,
+			},
+			EmailType:      "trial_licence_expiry",
+			RecipientEmail: licence.Email,
+			Status:         "sent",
+			ErrorMessage: sql.NullString{
+				Valid:  err != nil,
+				String: errorMsg,
+			},
+		})
+		if err != nil {
+			logError(fmt.Sprintf("failed to send email to update email record in db for: %v", licence.UserID), err)
+		}
+		log.Println("Sent licence expiry email to: ", licence.Email)
 	}
+	w.WriteHeader(http.StatusOK)
 }
