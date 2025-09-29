@@ -1,7 +1,7 @@
 name: "Email Expired Licence Users"
 on:
   schedule:
-    - cron: "0 12 * * *"
+    - cron: "30 12 * * *"
 
 jobs:
   cron_job:
