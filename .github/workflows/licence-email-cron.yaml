@@ -1,7 +1,9 @@
 name: "Email Expired Licence Users"
 on:
-  schedule:
-    - cron: "0 0 * * *"
+  # schedule:
+  #   - cron: "0 0 * * *"
+  push:
+    branches: [main]
 
 jobs:
   cron_job:
@@ -12,6 +14,6 @@ jobs:
 
       - name: Make curl request to backend
         run: |
-          curl  -X POST "${{secrets.API_URL}}cron-email-expired-licences" \
+          curl -f -X POST "${{secrets.API_URL}}/cron-email-expired-licences" \
           -H "Content-Type: application/json" \
-          -H "X-API-Key: ${{secrets.X-API-KEY}}"
+          -H "X-API-Key: ${{secrets.X_API_KEY}}"
