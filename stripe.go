@@ -95,8 +95,11 @@ func (api *API) createStripeCheckout(w http.ResponseWriter, r *http.Request) {
 		SuccessURL: stripe.String(successURL),
 		LineItems:  []*stripe.CheckoutSessionCreateLineItemParams{},
 		Customer:   stripe.String(payload.StripeCustomerID),
-		Mode:       stripe.String("payment"),
-		Metadata:   map[string]string{"userID": payload.UserID},
+		InvoiceCreation: &stripe.CheckoutSessionCreateInvoiceCreationParams{
+			Enabled: stripe.Bool(true),
+		},
+		Mode:     stripe.String("payment"),
+		Metadata: map[string]string{"userID": payload.UserID},
 	}
 
 	for _, prod := range payload.Products {
@@ -257,14 +260,25 @@ func (api *API) handleCheckoutSuccess(ctx context.Context, event stripe.Event) (
 	userID := sessionObj.Metadata["userID"]
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		log.Println("Couldn't parse uuid from checkout sesssion metadata")
+		log.Println("Couldn't parse uuid from checkout sesssion metadata", err)
 	}
+
+	nullUUID := uuid.NullUUID{
+		Valid: true,
+		UUID:  userUUID,
+	}
+
+	// Remove user's entry from trial table
+	go func() {
+		err := api.queries.RemoveFromTrialMachines(ctx, nullUUID)
+		if err != nil {
+			log.Println("Couldn't remove user from trial table", err)
+		}
+	}()
+
 	returnObj := paymentSuccess{
 		lineItems: lineItemList,
-		userID: uuid.NullUUID{
-			Valid: true,
-			UUID:  userUUID,
-		},
+		userID:    nullUUID,
 	}
 	return &returnObj, nil
 }

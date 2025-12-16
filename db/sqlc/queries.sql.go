@@ -542,6 +542,16 @@ func (q *Queries) MachineIDIsUsed(ctx context.Context, machineID string) (bool, 
 	return exists, err
 }
 
+const removeFromTrialMachines = `-- name: RemoveFromTrialMachines :exec
+DELETE FROM trial_machines
+WHERE user_id = $1
+`
+
+func (q *Queries) RemoveFromTrialMachines(ctx context.Context, userID uuid.NullUUID) error {
+	_, err := q.db.ExecContext(ctx, removeFromTrialMachines, userID)
+	return err
+}
+
 const removeMachineID = `-- name: RemoveMachineID :exec
 UPDATE licences
 SET machine_id = null

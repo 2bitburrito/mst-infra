@@ -19,7 +19,6 @@ RUN go build -v -o /run-app .
 FROM debian:bookworm
 RUN apt-get update && apt-get install -y ca-certificates && apt-get clean
 WORKDIR /app
-# COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /run-app /usr/local/bin/
 COPY --from=builder /usr/src/app/private.pem ./private.pem
 COPY --from=builder /usr/src/app/public.pem ./public.pem

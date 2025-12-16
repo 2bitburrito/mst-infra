@@ -145,6 +145,10 @@ INSERT INTO trial_machines(
   $1, $2
 );
 
+-- name: RemoveFromTrialMachines :exec
+DELETE FROM trial_machines
+WHERE user_id = $1;
+
 -- name: HasParticipatedInBeta :one
 SELECT EXISTS(
   SELECT * FROM beta_licences
