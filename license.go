@@ -40,7 +40,7 @@ func (api *API) checkLicense(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If db doesn't have jit then insert it and the JIT:
+	// If db doesn't have jti then insert it and the jti:
 	if !dbLicence.Jti.Valid {
 		log.Println("Machine Id isn't set - setting in DB")
 		err := api.queries.ChangeMachineIDAndJTI(r.Context(), queries.ChangeMachineIDAndJTIParams{

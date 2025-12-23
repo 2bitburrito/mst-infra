@@ -41,6 +41,19 @@ type returnUserPayload struct {
 func (api *API) getUser(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
+	if r.Context().Value("jwt_req") != nil {
+		jwtReq, ok := r.Context().Value("jwt_req").(jwtContext)
+		if !ok {
+			returnJsonError(w, "Error while getting jwt_req from context", http.StatusInternalServerError)
+			return
+		}
+
+		if jwtReq.userID != id {
+			returnJsonError(w, "Invalid id: "+id, http.StatusUnauthorized)
+			return
+		}
+	}
+
 	if len(id) == 0 {
 		returnJsonError(w, "Invalid id: "+id, http.StatusBadRequest)
 		return

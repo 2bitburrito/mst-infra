@@ -11,6 +11,7 @@ import (
 
 	database "github.com/2bitburrito/mst-infra/db/sqlc"
 	"github.com/2bitburrito/mst-infra/internal/stripeAPI"
+	"github.com/getsentry/sentry-go"
 	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/webhook"
@@ -273,6 +274,7 @@ func (api *API) handleCheckoutSuccess(ctx context.Context, event stripe.Event) (
 		err := api.queries.RemoveFromTrialMachines(ctx, nullUUID)
 		if err != nil {
 			log.Println("Couldn't remove user from trial table", err)
+			sentry.CaptureException(fmt.Errorf("couldn't remove user from trial table %v", err))
 		}
 	}()
 

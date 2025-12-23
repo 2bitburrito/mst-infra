@@ -11,6 +11,7 @@ import (
 
 type JsonErrReturn struct {
 	Error string `json:"error"`
+	Msg   string `json:"msg,omitempty"`
 }
 
 func logError(message string, e error, extraData ...any) {
@@ -21,12 +22,17 @@ func logError(message string, e error, extraData ...any) {
 
 func returnJsonError(w http.ResponseWriter, e string, statusCode int, msg ...string) {
 	if statusCode > 499 {
-		log.Printf("Responding with 5XX error: %s", msg)
+		log.Printf("Responding with 5XX error message: %s\n", msg)
 	}
 	sentry.CaptureException(fmt.Errorf("ERROR: %s \nCLIENT MSG: %s", e, msg))
 	log.Println(e)
+	var message string
+	if len(msg) > 0 {
+		message = msg[0]
+	}
 	rtnMap := JsonErrReturn{
 		Error: e,
+		Msg:   message,
 	}
 	respondWithJSON(w, statusCode, rtnMap)
 }

@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/2bitburrito/mst-infra/config"
 	Queries "github.com/2bitburrito/mst-infra/db/sqlc"
+	"github.com/2bitburrito/mst-infra/jwt"
 	"github.com/2bitburrito/mst-infra/store"
 
 	_ "github.com/lib/pq"
@@ -19,6 +22,10 @@ type API struct {
 	verificationStore  *store.VerificationStore
 	handledEventsStore *store.HandledEventsStore
 	config             config.Config
+}
+type jwtContext struct {
+	userID string
+	jwt    string
 }
 
 func (api *API) setupRouter() *http.ServeMux {
@@ -87,12 +94,39 @@ func (api *API) apiMiddleware(next http.Handler) http.Handler {
 		}
 
 		// Check API Key:
+		receivedJWT := r.Header.Get("Authorization")
 		apiKey := r.Header.Get("X-API-Key")
-		if apiKey != api.config.ApiKey {
-			returnJsonError(w, "Unauthorized Api Key from: "+r.RemoteAddr, http.StatusInternalServerError)
+		switch {
+		case apiKey != "":
+			if apiKey != api.config.ApiKey {
+				fmt.Println("Unauthorized Api Key from: ", r.RemoteAddr)
+				returnJsonError(w, "Unauthorized Api Key from: "+r.RemoteAddr, http.StatusUnauthorized)
+				return
+			}
+			next.ServeHTTP(w, r)
+
+		case receivedJWT != "":
+			claims, err := jwt.ValidateJWT(receivedJWT)
+			if err != nil {
+				returnJsonError(
+					w,
+					"Unauthorized JWT from: "+r.RemoteAddr,
+					http.StatusUnauthorized,
+					"There was an error while trying to authenticate your token on the server",
+				)
+				return
+			}
+			ctx := context.WithValue(r.Context(), "jwt_req", jwtContext{
+				userID: claims.UserID.String(),
+				jwt:    receivedJWT,
+			})
+			next.ServeHTTP(w, r.WithContext(ctx))
+
+		case receivedJWT == "" && apiKey == "":
+			fmt.Println("Unauthorized request from: ", r.RemoteAddr)
+			returnJsonError(w, "Unauthorized request from: "+r.RemoteAddr, http.StatusUnauthorized)
 			return
 		}
-		next.ServeHTTP(w, r)
 	})
 }
 
