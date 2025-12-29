@@ -270,13 +270,11 @@ func (api *API) handleCheckoutSuccess(ctx context.Context, event stripe.Event) (
 	}
 
 	// Remove user's entry from trial table
-	go func() {
-		err := api.queries.RemoveFromTrialMachines(ctx, nullUUID)
-		if err != nil {
-			log.Println("Couldn't remove user from trial table", err)
-			sentry.CaptureException(fmt.Errorf("couldn't remove user from trial table %v", err))
-		}
-	}()
+	err = api.queries.RemoveFromTrialMachines(ctx, nullUUID)
+	if err != nil {
+		log.Println("Couldn't remove user from trial table", err)
+		sentry.CaptureException(fmt.Errorf("couldn't remove user from trial table %v", err))
+	}
 
 	returnObj := paymentSuccess{
 		lineItems: lineItemList,
