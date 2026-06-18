@@ -132,7 +132,7 @@ func (api *API) apiMiddleware(next http.Handler) http.Handler {
 
 func main() {
 	cfg, _ := config.LoadConfig()
-	verificationStore := store.CreateVerificationStore(1*time.Minute, 10*time.Minute)
+	verificationStore := store.CreateVerificationStore(10*time.Minute, 10*time.Minute)
 	handledStripeEvents := store.CreateHandledEventStore(24 * time.Hour)
 
 	var db *sql.DB

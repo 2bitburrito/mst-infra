@@ -92,7 +92,7 @@ func (s *VerificationStore) reap() {
 
 	now := time.Now().UTC()
 	for id, val := range s.Map {
-		if val.CreatedAt.Before(now) {
+		if val.CreatedAt.Add(s.TimeoutDuration).Before(now) {
 			delete(s.Map, id)
 			count++
 		}
